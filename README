@@ -1,0 +1,23 @@
+2019 Final Project
+Concurrent & Distributed Programming class
+
+Project specifications (ita):
+http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf
+
+
+Usage(*):
+
+- clone/download repo
+- cd into hotel-booking folder
+- make
+- open a terminal session and run the server (**)
+- open one or more terminal sessions and run the client(s) (**)
+
+
+(*): tested on Linux Ubuntu and macOS
+
+(**): e.g.: ./server 127.0.0.1 8888  5 
+           ./client 127.0.0.1 8888
+
+
+Francesco Urbani

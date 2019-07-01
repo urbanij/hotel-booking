@@ -1,0 +1,308 @@
+/**
+ * @project:        hotel-booking
+ * @file:           Address.h
+ * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ *
+ * @date:           Sat Jun 29 17:04:46 CEST 2019
+ * @Description:    utility functions (mutual to both client and server)
+ *
+ */
+
+
+#ifndef UTILS_H
+#define UTILS_H
+
+
+#include <netinet/in.h> // inet_addr
+#include <arpa/inet.h>  // inet_addr
+#include <stdarg.h>
+
+
+// config definition and declarations
+#include "config.h"
+
+#include "Address.h"
+
+/********************************/
+/*                              */
+/*         definitions          */
+/*                              */
+/********************************/
+
+#define BUFLEN 80
+
+/********************************/
+/*                              */
+/*          my types            */
+/*                              */
+/********************************/
+
+
+
+
+/********************************/
+/*                              */
+/*         my functions         */
+/*                              */
+/********************************/
+
+
+/**
+ * @param   msg     perror message error
+ */
+void        perror_die(const char* msg);
+
+/**
+ * @param   argc    number of stdin arguments
+ * @param   argv    array of strings passed from stdin
+ * @return          address type variable
+ */
+Address     readArguments(int argc, char** argv);
+
+void        writeSocket(int sockfd, char* msg);
+
+void        readSocket(int sockfd, char* msg);
+
+int         setupServer(Address* address);
+
+int         setupClient(Address* address);
+
+void        logging(const char* file, const int line, const char* fmt, ...);
+
+void        print(const char* file, const int line, const char* fmt, ...);
+
+/********************************/
+
+
+void
+perror_die(const char* msg)
+{
+    perror(msg);
+    exit(-1);
+}
+
+Address
+readArguments(int argc, char** argv)
+{
+    Address addr;
+
+    if (argc < 3) {
+        printf("\x1b[31mWrong number of parameters!\x1b[0m\n");
+        printf("Usage: %s <ip> <port>\n", argv[0]);
+        exit(-1);
+    }
+
+    #if 0 
+        addr.ip = argv[1];
+    #else
+        strcpy(addr.ip, argv[1]);
+    #endif
+    addr.port = atoi(argv[2]);
+
+    return addr;
+}
+
+
+
+void
+writeSocket(int sockfd, char* msg)
+{
+    static int ret;
+
+    int dim;
+
+    dim = htonl(strlen(msg));
+
+    // printf("dim = %d\n", dim);
+
+    ret = send(sockfd, (void*) &dim, sizeof(dim), 0);
+
+    if (ret < 0 || ret < sizeof(dim)){
+        perror_die("send(dim)");
+    }
+
+    ret = send(sockfd, (void*) msg, strlen(msg), 0);
+
+    if (ret < 0 || ret < strlen(msg)) {
+        perror_die("send(msg)");
+    }
+
+    return;
+}
+
+
+
+void
+readSocket(int sockfd, char* msg)
+{
+    int ret;    // return value
+    int dim;    // dimension
+
+    // receive and assign return value to ret for later check
+    ret = recv(sockfd, (void*) &dim, sizeof(dim), MSG_WAITALL); // blocking function
+
+    // check ret value
+    if (ret < 0 || ret < sizeof(dim)) {
+        perror_die("recv(dim)");
+    }
+
+    // endianess translation: network2host long
+    dim = ntohl(dim);
+
+    #if 0
+        // clean data struct, causes a warning so i clean it in the main routine.
+        memset(msg, '\0', sizeof(msg));
+        // ./utils.h:162:34: warning: 'memset' call operates on objects of type 'char' while the size is based on a different type 'char *' [-Wsizeof-pointer-memaccess]
+    #endif
+
+    // get actual data from socket
+    ret = recv(sockfd, (void*) msg, dim, MSG_WAITALL);
+
+    // again, check return value
+    if (ret < 0 || ret < dim) {
+        perror_die("recv(msg)");
+    }
+
+    return;
+}
+
+
+
+
+
+
+int setupServer(Address* address)
+{
+    /* 
+     * socket() -> bind() -> listen() [-> accept()]
+     *                                      ^-------- out of the scope of this function. comes later.
+     */
+
+    int sockfd;          // listening socket file descriptor
+    int ret;
+
+    struct sockaddr_in server_addr;     // server address
+    
+
+    // socket create and verification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);   // create socket and check return value
+    if (sockfd == -1) {
+        printf("socket creation failed...\n");
+        exit(-1);
+    }
+    else {
+        printf("Socket successfully created..\n");
+    }
+    memset(&server_addr, '\0', sizeof(server_addr));
+
+    // assign ip and port
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);    // connect to any
+    server_addr.sin_port = htons(address->port);        // port number
+
+    // Binding newly created socket to given IP and verification
+
+    ret = (bind(sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr)));
+    if (ret != 0) {
+        perror_die("socket bind failed...\n");
+    }
+
+    // else
+    //     printf("Socket successfully binded..\n");
+
+    // Now server is ready to listen and verification
+    ret = listen(sockfd, BACKLOG);
+    if (ret != 0) {
+        perror_die("Listen()");
+    }
+    else
+        printf("Server listening on port %d\n", address->port);
+
+    return sockfd;
+}
+
+
+int setupClient(Address* address)
+{
+    /* 
+     * socket() -> connect()
+     */
+
+    int sockfd;          // socket file descriptor
+    int ret;
+
+    // int addressfd;
+    struct sockaddr_in server_addr;
+    // struct sockaddr_in cli;
+
+    // socket create and varification
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        perror_die("socket()");
+        exit(0);
+    }
+    else
+        printf("Socket successfully created..\n");
+
+    // clean memory space of server_addr
+    #if 0
+        bzero(&server_addr, sizeof(server_addr));       // bzero is deprecated. works but memset is better
+                                                        // https://www.quora.com/In-C-what-is-the-difference-between-bzero-and-memset
+    #else
+        memset(&server_addr, '\0', sizeof(server_addr));
+    #endif
+
+    // assign IP, PORT
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(address->ip);
+    server_addr.sin_port = htons(address->port);
+
+    // addressect the client socket to server socket
+    ret = connect(sockfd, (struct sockaddr*) &server_addr, sizeof(server_addr));
+    if (ret != 0) {
+        perror_die("connect()");
+    }
+    else
+        printf("connection to the server..\n");
+
+
+    return sockfd;
+}
+
+
+
+
+
+
+
+
+
+void logging(const char* file, const int line, const char *fmt, ...)
+{
+    /* doesn really work as exptected: cant pass args... */
+    va_list list;
+
+    va_start(list, fmt); 
+
+        printf(
+        "\x1b[90m%s:%d:\x1b[0m %s\n",
+        file, line, fmt);
+    
+    va_end(list);
+
+    
+}
+
+inline void print(const char* file, const int line, const char *fmt, ...)
+{
+    #if DEBUG
+        logging(file, line, fmt);
+    #else
+        printf("%s\n", fmt);
+    #endif
+}
+
+
+
+#endif
+
