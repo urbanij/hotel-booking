@@ -37,12 +37,74 @@
 #include "Hotel.h"
 #include "User.h"
 
+#define HELP_UNLOGGED_MESSAGE_1 "Commands:\n\
+        \x1b[36m help     \x1b[0m --> show commands\n\
+        \x1b[36m register \x1b[0m --> register an account\n\
+        \x1b[36m login    \x1b[0m --> log into the system\n\
+        \x1b[36m quit     \x1b[0m --> log out and quit.\n\
+        \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
+        \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
+        \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
+
+#define HELP_LOGGED_IN_MESSAGE_1 "Commands:\n\
+        \x1b[36m help     \x1b[0m --> show commands\n\
+        \x1b[36m reserve  \x1b[0m --> book a room\n\
+        \x1b[36m release  \x1b[0m --> cancel a booking\n\
+        \x1b[36m view     \x1b[0m --> show current bookings\n\
+        \x1b[36m quit     \x1b[0m --> log out and quit.\n\
+        \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
+        \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
+
+#define HELP_UNLOGGED_MESSAGE_2 "Commands:\n\
+        \x1b[36m help     \x1b[0m --> show commands\n\
+        \x1b[36m register \x1b[0m --> register an account\n\
+        \x1b[36m login    \x1b[0m --> log into the system\n\
+        \x1b[36m quit     \x1b[0m --> log out and quit.\n"
+
+#define HELP_LOGGED_IN_MESSAGE_2 "Commands:\n\
+        \x1b[36m help     \x1b[0m --> show commands\n\
+        \x1b[36m reserve  \x1b[0m --> book a room\n\
+        \x1b[36m release  \x1b[0m --> cancel a booking\n\
+        \x1b[36m view     \x1b[0m --> show current bookings\n\
+        \x1b[36m quit     \x1b[0m --> log out and quit.\n"
 
 /********************************/
 /*                              */
 /*      custom data types       */
 /*                              */
 /********************************/
+
+
+/**
+ * main FSM states          // <paste link here>
+ */
+typedef enum {
+    INIT,                   // starting point of the program, waits for
+                            // inbound commands to be dispatched to the
+                            // next state.
+
+    HELP_UNLOGGED,          // prints the help message and goes back to init.
+
+    CHECK_USERNAME,
+    CHECK_PASSWORD,
+
+    CHECK_IF_LOGGED_IN,     // checks whether the user is already logged-in
+    REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
+    PICK_USERNAME,
+    PICK_PASSWORD,    
+
+    LOGIN,                  // the user is inside the system and can send commands that requires login
+    HELP_LOGGED_IN,
+    CHECK_IF_FULL,          // checks whether the hotel-rooms are sold-out.
+    RESERVE,                // if not sold out, book a room.
+
+    CHECK_IF_VALID_ENTRY,   // checks whether the user has actually reserved a room or not.
+    RELEASE,                // cancel booking
+
+    VIEW,                   // show list of rooms booked by the logged-in user
+    LOGOUT,                 // go back to INIT
+    QUIT                   // closes connection with client
+} fsm_state_t;
 
 
 /********************************/
@@ -53,7 +115,7 @@
 
 
 
-static xp_sem_t     lock_g;                      // global lock
+static xp_sem_t     lock_g;                     // global lock
 
 
 static xp_sem_t     free_threads;               // semaphore for waiting for free threads
@@ -66,7 +128,8 @@ static int          busy[NUM_THREADS];          // map of busy threads
 static int          tid[NUM_THREADS];           // array of pre-allocated thread IDs
 static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
 
-// static Booking      bookings[NUM_THREADS];
+static fsm_state_t  state[NUM_THREADS];         // FSM states
+
 
 
 /*                       __        __
@@ -84,15 +147,26 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 /**
  * thread handler function
  */
-void*   threadHandler   (void* opaque);
+void*       threadHandler   (void* opaque);
 
 /**
  * command dispatcher: runs inside the threadHandler functions 
  * and dispatches the inbound commands to the executive functions.
  */
-void    dispatcher      (int sockfd, int thread_index);
+void        dispatcher      (int sockfd, int thread_index);
+
+// FSM related 
+fsm_state_t* updateFSM       (fsm_state_t* state, char* command);
+void        printFSMState   (fsm_state_t* s);
 
 
+
+int checkUsername();
+int checkPassowrd();
+int checkIfLoggedIn();
+int pickPassword();
+int checkIfFull();
+int checkIfValidEntry();
 /********************************/
 /*                              */
 /*          functions           */
@@ -112,7 +186,10 @@ int main(int argc, char** argv)
     // setup the server and return socket file descriptor.
     int sockfd = setupServer(&address);         // listening socket file descriptor
 
-    
+    // initialized FSM
+    for (int i = 0; i < NUM_THREADS; i++){
+        state[i] = INIT;
+    }
 
     // setup semaphores
     xp_sem_init(&lock_g, 0, 1);          // init to 1 since it's binary
@@ -236,7 +313,7 @@ void* threadHandler(void* indx)
         
         // serving the request (dispatched)
         dispatcher(conn_sockfd, thread_index);
-        printf ("Thread #%d served a request\n", thread_index);
+        printf ("Thread #%d closed session, client disconnected.\n", thread_index);
 
 
         // notifying the main thread that THIS thread is now free and can be assigned to new requests.
@@ -288,14 +365,9 @@ void dispatcher (int conn_sockfd, int thread_index){
             memset(booking.date, '\0', sizeof(booking.date));
             memset(booking.code, '\0', sizeof(booking.code));
         #endif
-
-        readSocket(conn_sockfd, command);  // fix space separated strings
         
-        printf("THREAD #%d: command received: %s\n", thread_index, command);
-
-
-
-
+        
+        #if 0
         if (strcmp(command, "res") == 0){                   // got reserve
             readSocket(conn_sockfd, booking.date);
         }
@@ -317,16 +389,278 @@ void dispatcher (int conn_sockfd, int thread_index){
             printf("%s\n", "quitting");     // continue here....
             break;
         }
+        #else
 
-         
+        
+
+        #if 1
+        switch (state[thread_index])
+        {
+            case INIT:
+                readSocket(conn_sockfd, command);  // fix space separated strings
+                printf("THREAD #%d: command received: %s\n", thread_index, command);
+                break;
+
+            case HELP_UNLOGGED:
+                printf(HELP_UNLOGGED_MESSAGE_2);
+                break;
+
+            case CHECK_IF_LOGGED_IN:
+
+                break;
+            case REGISTER:
+
+                break;
+            case PICK_USERNAME:
+
+                break;
+            case PICK_PASSWORD:
+
+                break;
+
+            case LOGIN:
+
+                break;
+            case HELP_LOGGED_IN:
+                printf(HELP_LOGGED_IN_MESSAGE_2);
+                break;
+
+            case CHECK_IF_FULL:
+
+                break;
+            case RESERVE:
+
+                break;
+
+            case CHECK_IF_VALID_ENTRY:
+
+                break;
+
+            case RELEASE:
+
+                break;
+
+            case VIEW:
+
+                break;
+            case LOGOUT:
+
+                break;
             
+            case QUIT:
+                printf("%s\n", "quitting");     // continue here....
+                goto ABORT;
 
+            default:
+                break;
+
+        }
+        #endif
+
+
+        updateFSM(&state[thread_index], command);
+
+        
+        
+        printFSMState(&state[thread_index]);
+            
+        #endif
     }
 
-
-
-    return;
+    ABORT:
+        return;
 }
 
 
+
+
+
+fsm_state_t* updateFSM(fsm_state_t* state, char* command)
+{
+    int rv; 
+    
+    switch (*state)
+    {
+
+        case INIT:
+            if      (strcmp(command, "h") == 0)  // help
+                *state = HELP_UNLOGGED;
+            else if (strcmp(command, "v") == 0)  // view
+                *state = INIT;
+            else if (strcmp(command, "r") == 0)  // register
+                *state = CHECK_IF_LOGGED_IN;
+            else if (strcmp(command, "l") == 0)  // login
+                *state = CHECK_USERNAME;
+            else if (strcmp(command, "q") == 0)  // quit
+                *state = QUIT;
+            else
+                *state = INIT;
+            break;
+            
+        case HELP_UNLOGGED:
+            *state = INIT;
+            break;
+
+        case CHECK_USERNAME:
+            rv = checkUsername();
+            if (rv == 0){
+                *state = CHECK_PASSWORD;
+            }
+            else {
+                *state = INIT;   
+            }
+            break;
+
+        case CHECK_PASSWORD:
+            rv = checkPassowrd();
+            if (rv == 0){
+                *state = LOGIN;
+            }
+            else {
+                *state = INIT;   
+            }
+            break;
+
+        case CHECK_IF_LOGGED_IN:
+            rv = checkIfLoggedIn();
+            if (rv == 0){
+                *state = REGISTER;
+            }
+            else {
+                *state = INIT;
+            }
+            break;
+        
+        case REGISTER:
+            *state = PICK_USERNAME;
+            break;
+        
+        case PICK_USERNAME:
+            *state = PICK_PASSWORD;
+            break;
+        
+        case PICK_PASSWORD:
+            rv = pickPassword();
+            if (rv == 0){
+                *state = LOGIN;
+            }
+            else {
+                *state = PICK_USERNAME;
+            }
+            break;
+
+        case LOGIN:
+            if      (strcmp(command, "h") == 0)  // help
+                *state = HELP_LOGGED_IN;
+            else if (strcmp(command, "v") == 0)  // view
+                *state = VIEW;
+            else if (strcmp(command, "res") == 0)  // reserve
+                *state = CHECK_IF_FULL;
+            else if (strcmp(command, "rel") == 0)  // release
+                *state = CHECK_IF_VALID_ENTRY;
+            else if (strcmp(command, "q") == 0)  // quit
+                *state = QUIT;
+            break;
+        case HELP_LOGGED_IN:
+            *state = LOGIN;
+            break;
+
+        case CHECK_IF_FULL:
+            rv = checkIfFull();
+            if (rv == 0){
+                *state = RESERVE;
+            }
+            else {
+                *state = LOGIN;
+            }
+            break;
+
+        case RESERVE:
+            *state = LOGIN;
+            break;
+
+        case CHECK_IF_VALID_ENTRY:
+            rv = checkIfValidEntry();
+            if (rv == 0){
+                *state = RELEASE;
+            }
+            else {
+                *state = LOGIN;
+            }
+            break;
+
+        case RELEASE:
+            *state = LOGIN;
+            break;
+
+        case VIEW:
+            *state = LOGIN;
+            break;
+
+        case LOGOUT:
+            *state = INIT;
+            break;
+
+        case QUIT:
+            *state = INIT;  // makes no sense tho, it's quitting anyway...
+            break;
+
+        default:
+            *state = INIT;
+    }
+    
+    return  state;
+}
+
+
+void printFSMState(fsm_state_t* s)
+{
+    const char* fsm_state_name[] = {
+        "INIT", 
+        "HELP_UNLOGGED",
+        "CHECK_USERNAME",
+        "CHECK_PASSWORD",
+        "CHECK_IF_LOGGED_IN",
+        "REGISTER",
+        "PICK_USERNAME",
+        "PICK_PASSWORD",
+        "LOGIN",
+        "HELP_LOGGED_IN",
+        "CHECK_IF_FULL",
+        "RESERVE",
+        "CHECK_IF_VALID_ENTRY",
+        "RELEASE",
+        "VIEW",
+        "LOGOUT",
+        "QUIT"    
+    };
+
+    printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
+    return;
+
+}
+
+
+
+
+
+int checkUsername(){
+    return -1;
+}
+int checkPassowrd(){
+    return -1;
+}
+int checkIfLoggedIn(){
+    return 0;
+}
+int pickPassword(){
+    return 0;
+}
+
+int checkIfFull(){
+    return 0;
+}
+int checkIfValidEntry(){
+    return 0;
+}
 

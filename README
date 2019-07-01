@@ -17,7 +17,7 @@ Usage(*):
 (*): tested on Linux Ubuntu and macOS
 
 (**): e.g.: ./server 127.0.0.1 8888  5 
-           ./client 127.0.0.1 8888
+            ./client 127.0.0.1 8888
 
 
 Francesco Urbani

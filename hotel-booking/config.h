@@ -13,8 +13,7 @@
 #define CONFIG_H
 
 
-#define DEBUG               1
-
+#define DEBUG                   1
 
 
 
