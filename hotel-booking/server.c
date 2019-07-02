@@ -97,7 +97,7 @@ static int          busy[NUM_THREADS];          // map of busy threads
 static int          tid[NUM_THREADS];           // array of pre-allocated thread IDs
 static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
 
-static fsm_state_t  state[NUM_THREADS];         // FSM states
+static server_fsm_state_t  state[NUM_THREADS];         // FSM states
 
 
 
@@ -125,7 +125,7 @@ void*       threadHandler   (void* opaque);
 void        dispatcher      (int sockfd, int thread_index);
 
 // FSM related 
-fsm_state_t* updateServerFSM       (fsm_state_t* state, char* command);
+server_fsm_state_t* updateServerFSM       (server_fsm_state_t* state, char* command);
 
 
 
@@ -432,20 +432,20 @@ void dispatcher (int conn_sockfd, int thread_index){
 
         
         
-        printFSMState(&state[thread_index]);
+        printServerFSMState(&state[thread_index]);
             
         #endif
     }
 
-    ABORT:
-        return;
+ABORT:
+    return;
 }
 
 
 
 
 
-fsm_state_t* updateServerFSM(fsm_state_t* state, char* command)
+server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
 {
     int rv; 
     

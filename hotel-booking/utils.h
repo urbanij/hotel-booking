@@ -67,8 +67,43 @@ typedef enum {
     VIEW,                   // show list of rooms booked by the logged-in user
     LOGOUT,                 // go back to INIT
     QUIT                    // closes connection with client
-} fsm_state_t;
+} server_fsm_state_t;
 
+
+
+/**
+ * main FSM states          
+ */
+typedef enum {
+    CL_INIT,
+    
+    INVALID,
+
+    SEND_HELP,
+    READ_HELP_RESP,
+
+    SEND_QUIT,
+
+    SEND_REGISTER,
+    READ_REGISTER_RESP,
+
+    SEND_USERNAME,
+    READ_USERNAME_RESP,
+    SEND_PASSWORD,
+    READ_PASSWORD_RESP,
+
+    SEND_RELEASE,
+    READ_RELEASE_RESP,
+
+    SEND_RESERVE,
+    READ_RESERVE_RESP,
+
+    SEND_VIEW,
+    READ_VIEW_RESP,
+
+    SEND_LOGOUT,
+    READ_LOGOUT_RESP
+} client_fsm_state_t;
 
 
 
@@ -103,8 +138,8 @@ int         setupClient(Address* address);
 
 
 
-void        printFSMState(fsm_state_t* s);
-
+void        printServerFSMState(server_fsm_state_t* s);
+void        printClientFSMState(client_fsm_state_t* s);
 
 
 
@@ -314,7 +349,7 @@ int setupClient(Address* address)
 
 
 
-void printFSMState(fsm_state_t* s)
+void printServerFSMState(server_fsm_state_t* s)
 {
     const char* fsm_state_name[] = {
         "INIT", 
@@ -341,6 +376,45 @@ void printFSMState(fsm_state_t* s)
 
 }
 
+
+
+void printClientFSMState(client_fsm_state_t* s)
+{
+    const char* fsm_state_name[] = {
+        "CL_INIT",
+    
+        "INVALID",
+
+        "SEND_HELP",
+        "READ_HELP_RESP",
+
+        "SEND_QUIT",
+
+        "SEND_REGISTER",
+        "READ_REGISTER_RESP",
+
+        "SEND_USERNAME",
+        "READ_USERNAME_RESP",
+        "SEND_PASSWORD",
+        "READ_PASSWORD_RESP",
+
+        "SEND_RELEASE",
+        "READ_RELEASE_RESP",
+
+        "SEND_RESERVE",
+        "READ_RESERVE_RESP",
+
+        "SEND_VIEW",
+        "READ_VIEW_RESP",
+
+        "SEND_LOGOUT",
+        "READ_LOGOUT_RESP"
+    };
+
+    printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
+    return;
+
+}
 
 
 
