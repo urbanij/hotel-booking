@@ -97,7 +97,7 @@ static int          busy[NUM_THREADS];          // map of busy threads
 static int          tid[NUM_THREADS];           // array of pre-allocated thread IDs
 static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
 
-static server_fsm_state_t  state[NUM_THREADS];         // FSM states
+// static server_fsm_state_t  state[NUM_THREADS];         // FSM states
 
 
 
@@ -156,9 +156,11 @@ int main(int argc, char** argv)
     int sockfd = setupServer(&address);         // listening socket file descriptor
 
     // initialized FSM
+    #if 0
     for (int i = 0; i < NUM_THREADS; i++){
         state[i] = INIT;
     }
+    #endif
 
     // setup semaphores
     xp_sem_init(&lock_g, 0, 1);          // init to 1 since it's binary
@@ -321,8 +323,22 @@ void* threadHandler(void* indx)
 void dispatcher (int conn_sockfd, int thread_index){
 
     char command[BUFSIZE];
-    Booking booking;    // variable to handle the functions 
-                        // `release` and `reserve` from the client.
+    Booking booking;        // variable to handle the functions 
+                            // `release` and `reserve` from the client.
+
+
+    /* creating dinamic variable to hold the value of the current state
+     * on the server-side FSM
+     */
+
+    // create pointer variable called `state_pointer`
+    server_fsm_state_t* state_pointer = (server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
+
+    // `state pointer` is not actually used throughout this function but its 
+    // value is dereferenced to the variable `state`.
+    // `state_pointer` is used again when freeing the memory at the end of this routine.
+    server_fsm_state_t state = *state_pointer;
+
 
 
     while (1) 
@@ -363,7 +379,7 @@ void dispatcher (int conn_sockfd, int thread_index){
         
 
         #if 1
-        switch (state[thread_index])
+        switch (state)
         {
             case INIT:
                 readSocket(conn_sockfd, command);  // fix space separated strings
@@ -418,6 +434,7 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
             
             case QUIT:
+                free(state_pointer);
                 printf("%s\n", "quitting");     // continue here....
                 goto ABORT;
 
@@ -428,11 +445,11 @@ void dispatcher (int conn_sockfd, int thread_index){
         #endif
 
 
-        updateServerFSM(&state[thread_index], command);
+        updateServerFSM(&state, command);
 
         
         
-        printServerFSMState(&state[thread_index]);
+        printServerFSMState(&state);
             
         #endif
     }

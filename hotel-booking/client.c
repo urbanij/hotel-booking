@@ -364,7 +364,6 @@ int main(int argc, char** argv)
 
 
 
-
         #endif
 
     }
@@ -403,6 +402,8 @@ client_fsm_state_t* updateClientFSM(client_fsm_state_t* state, char* command)
                 *state = SEND_RESERVE;
             else if (strcmp(command, "quit") == 0)
                 *state = SEND_QUIT;
+            else
+                *state = INVALID;
             break;
     
         case INVALID:
