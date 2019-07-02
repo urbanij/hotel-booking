@@ -75,37 +75,6 @@
 /********************************/
 
 
-/**
- * main FSM states          // <paste link here>
- */
-typedef enum {
-    INIT,                   // starting point of the program, waits for
-                            // inbound commands to be dispatched to the
-                            // next state.
-
-    HELP_UNLOGGED,          // prints the help message and goes back to init.
-
-    CHECK_USERNAME,
-    CHECK_PASSWORD,
-
-    CHECK_IF_LOGGED_IN,     // checks whether the user is already logged-in
-    REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
-    PICK_USERNAME,
-    PICK_PASSWORD,    
-
-    LOGIN,                  // the user is inside the system and can send commands that requires login
-    HELP_LOGGED_IN,
-    CHECK_IF_FULL,          // checks whether the hotel-rooms are sold-out.
-    RESERVE,                // if not sold out, book a room.
-
-    CHECK_IF_VALID_ENTRY,   // checks whether the user has actually reserved a room or not.
-    RELEASE,                // cancel booking
-
-    VIEW,                   // show list of rooms booked by the logged-in user
-    LOGOUT,                 // go back to INIT
-    QUIT                   // closes connection with client
-} fsm_state_t;
-
 
 /********************************/
 /*                              */
@@ -156,8 +125,8 @@ void*       threadHandler   (void* opaque);
 void        dispatcher      (int sockfd, int thread_index);
 
 // FSM related 
-fsm_state_t* updateFSM       (fsm_state_t* state, char* command);
-void        printFSMState   (fsm_state_t* s);
+fsm_state_t* updateServerFSM       (fsm_state_t* state, char* command);
+
 
 
 
@@ -402,7 +371,8 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
 
             case HELP_UNLOGGED:
-                printf(HELP_UNLOGGED_MESSAGE_2);
+                // printf(HELP_UNLOGGED_MESSAGE_2);
+                writeSocket(conn_sockfd, HELP_UNLOGGED_MESSAGE_2);
                 break;
 
             case CHECK_IF_LOGGED_IN:
@@ -458,7 +428,7 @@ void dispatcher (int conn_sockfd, int thread_index){
         #endif
 
 
-        updateFSM(&state[thread_index], command);
+        updateServerFSM(&state[thread_index], command);
 
         
         
@@ -475,7 +445,7 @@ void dispatcher (int conn_sockfd, int thread_index){
 
 
 
-fsm_state_t* updateFSM(fsm_state_t* state, char* command)
+fsm_state_t* updateServerFSM(fsm_state_t* state, char* command)
 {
     int rv; 
     
@@ -612,33 +582,6 @@ fsm_state_t* updateFSM(fsm_state_t* state, char* command)
     return  state;
 }
 
-
-void printFSMState(fsm_state_t* s)
-{
-    const char* fsm_state_name[] = {
-        "INIT", 
-        "HELP_UNLOGGED",
-        "CHECK_USERNAME",
-        "CHECK_PASSWORD",
-        "CHECK_IF_LOGGED_IN",
-        "REGISTER",
-        "PICK_USERNAME",
-        "PICK_PASSWORD",
-        "LOGIN",
-        "HELP_LOGGED_IN",
-        "CHECK_IF_FULL",
-        "RESERVE",
-        "CHECK_IF_VALID_ENTRY",
-        "RELEASE",
-        "VIEW",
-        "LOGOUT",
-        "QUIT"    
-    };
-
-    printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
-    return;
-
-}
 
 
 

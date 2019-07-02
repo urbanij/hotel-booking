@@ -54,6 +54,10 @@
 /*                              */
 /********************************/
 
+
+// FSM related 
+fsm_state_t* updateClientFSM       (fsm_state_t* state, char* command);
+
 int closeConnection(int);
 
 
@@ -83,10 +87,12 @@ int main(int argc, char** argv)
 
 
     char command[BUFSIZE];
+    char response[BUFSIZE];
     while (1) 
     {
         
         memset(command, '\0', BUFSIZE);
+        memset(response, '\0', BUFSIZE);
 
         printf("> ");
 
@@ -154,6 +160,8 @@ int main(int argc, char** argv)
             command[1] = '\0';              // trims the command to the first char only
             writeSocket(sockfd, command);   // since it uniquely indentifies the command. 
                                             // there's not need to ship the whole string
+
+            readSocket(sockfd, response);
         }
 
         else if (!strcmp (command, "quit")) {
@@ -194,18 +202,9 @@ int main(int argc, char** argv)
         }
         
 
+        printf("%s\n", response);
 
-        #if 0
-            if 1
-                for(int i = 0; i < BUFSIZE; i++)
-                {
-                    command[i] = '\0';
-                }
-            else
-                memset(command, '\n', BUFSIZE);
-            endif
-        #endif
-
+        
 
     }
 
@@ -220,6 +219,148 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+
+
+fsm_state_t* updateClientFSM(fsm_state_t* state, char* command)
+{
+    int rv; 
+    
+    switch (*state)
+    {
+
+        case INIT:
+            if      (strcmp(command, "h") == 0)  // help
+                *state = HELP_UNLOGGED;
+            else if (strcmp(command, "v") == 0)  // view
+                *state = INIT;
+            else if (strcmp(command, "r") == 0)  // register
+                *state = CHECK_IF_LOGGED_IN;
+            else if (strcmp(command, "l") == 0)  // login
+                *state = CHECK_USERNAME;
+            else if (strcmp(command, "q") == 0)  // quit
+                *state = QUIT;
+            else
+                *state = INIT;
+            break;
+            
+        case HELP_UNLOGGED:
+            *state = INIT;
+            break;
+
+        case CHECK_USERNAME:
+            rv = 0;
+            if (rv == 0){
+                *state = CHECK_PASSWORD;
+            }
+            else {
+                *state = INIT;   
+            }
+            break;
+
+        case CHECK_PASSWORD:
+            rv = 0;
+            if (rv == 0){
+                *state = LOGIN;
+            }
+            else {
+                *state = INIT;   
+            }
+            break;
+
+        case CHECK_IF_LOGGED_IN:
+            rv = 0;
+            if (rv == 0){
+                *state = REGISTER;
+            }
+            else {
+                *state = INIT;
+            }
+            break;
+        
+        case REGISTER:
+            *state = PICK_USERNAME;
+            break;
+        
+        case PICK_USERNAME:
+            *state = PICK_PASSWORD;
+            break;
+        
+        case PICK_PASSWORD:
+            rv = 0;
+            if (rv == 0){
+                *state = LOGIN;
+            }
+            else {
+                *state = PICK_USERNAME;
+            }
+            break;
+
+        case LOGIN:
+            if      (strcmp(command, "h") == 0)  // help
+                *state = HELP_LOGGED_IN;
+            else if (strcmp(command, "v") == 0)  // view
+                *state = VIEW;
+            else if (strcmp(command, "res") == 0)  // reserve
+                *state = CHECK_IF_FULL;
+            else if (strcmp(command, "rel") == 0)  // release
+                *state = CHECK_IF_VALID_ENTRY;
+            else if (strcmp(command, "q") == 0)  // quit
+                *state = QUIT;
+            break;
+        case HELP_LOGGED_IN:
+            *state = LOGIN;
+            break;
+
+        case CHECK_IF_FULL:
+            rv = 0;
+            if (rv == 0){
+                *state = RESERVE;
+            }
+            else {
+                *state = LOGIN;
+            }
+            break;
+
+        case RESERVE:
+            *state = LOGIN;
+            break;
+
+        case CHECK_IF_VALID_ENTRY:
+            rv = 0;
+            if (rv == 0){
+                *state = RELEASE;
+            }
+            else {
+                *state = LOGIN;
+            }
+            break;
+
+        case RELEASE:
+            *state = LOGIN;
+            break;
+
+        case VIEW:
+            *state = LOGIN;
+            break;
+
+        case LOGOUT:
+            *state = INIT;
+            break;
+
+        case QUIT:
+            *state = INIT;  // makes no sense tho, it's quitting anyway...
+            break;
+
+        default:
+            *state = INIT;
+    }
+    
+    return  state;
+}
+
+
+
 
 
 
