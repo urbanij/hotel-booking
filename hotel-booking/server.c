@@ -6,6 +6,10 @@
  * @date:           Mon Jul  1 12:31:31 CEST 2019
  * @Description:    server side
  *
+ * 
+ * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread]`
+ *
+ * LOC: cat server.c | sed '/^\s*$/d' | wc -l
  */
 
 #include <netdb.h>
@@ -124,18 +128,54 @@ void*       threadHandler   (void* opaque);
  */
 void        dispatcher      (int sockfd, int thread_index);
 
-// FSM related 
+// FSM related
+/**
+ *
+ */
 server_fsm_state_t* updateServerFSM       (server_fsm_state_t* state, char* command);
 
 
+/**
+ *
+ */
+int usernameIsAvailable();
 
 
+
+
+
+
+
+/**
+ *
+ */
 int checkUsername();
+
+/**
+ *
+ */
 int checkPassowrd();
+
+/**
+ *
+ */
 int checkIfLoggedIn();
-int pickPassword();
+
+/**
+ *
+ */
+int checkIfUsernameAlreadyRegistered();
+
+/**
+ *
+ */
 int checkIfFull();
+
+/**
+ *
+ */
 int checkIfValidEntry();
+
 /********************************/
 /*                              */
 /*          functions           */
@@ -346,7 +386,7 @@ void dispatcher (int conn_sockfd, int thread_index){
     
         #if 1
             // clean the pipes after receiveing each command.
-            memset(command,      '\0', sizeof(command));
+            memset(command,      '\0', BUFSIZE);
             memset(booking.date, '\0', sizeof(booking.date));
             memset(booking.code, '\0', sizeof(booking.code));
         #endif
@@ -391,47 +431,38 @@ void dispatcher (int conn_sockfd, int thread_index){
                 writeSocket(conn_sockfd, HELP_UNLOGGED_MESSAGE_2);
                 break;
 
-            case CHECK_IF_LOGGED_IN:
 
-                break;
+
             case REGISTER:
-
+                printf("%s\n", "400 received register.");
+                writeSocket(conn_sockfd, "Choose username: "); // works
                 break;
+
             case PICK_USERNAME:
+                readSocket(conn_sockfd, command);
+                printf("usernameee %s\n", command); // works
+
+                writeSocket(conn_sockfd, "username OK.");   // EDIT THIS!
 
                 break;
-            case PICK_PASSWORD:
 
+            case PICK_PASSWORD:
+                readSocket(conn_sockfd, command);
+                printf("passworrrd %s\n", command);
+                break;
+
+            case SAVE_CREDENTIAL:
+                writeSocket(conn_sockfd, "OK: Account was successfully setup.");
                 break;
 
             case LOGIN:
-
-                break;
-            case HELP_LOGGED_IN:
-                printf(HELP_LOGGED_IN_MESSAGE_2);
-                break;
-
-            case CHECK_IF_FULL:
-
-                break;
-            case RESERVE:
-
+                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
+                
+                readSocket(conn_sockfd, command);  // fix space separated strings
+                printf("THREAD #%d: command received: %s\n", thread_index, command);
                 break;
 
-            case CHECK_IF_VALID_ENTRY:
 
-                break;
-
-            case RELEASE:
-
-                break;
-
-            case VIEW:
-
-                break;
-            case LOGOUT:
-
-                break;
             
             case QUIT:
                 free(state_pointer);
@@ -449,7 +480,7 @@ void dispatcher (int conn_sockfd, int thread_index){
 
         
         
-        printServerFSMState(&state);
+        printServerFSMState(&state, &thread_index);
             
         #endif
     }
@@ -472,12 +503,12 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
         case INIT:
             if      (strcmp(command, "h") == 0)  // help
                 *state = HELP_UNLOGGED;
-            else if (strcmp(command, "v") == 0)  // view
-                *state = INIT;
+            // else if (strcmp(command, "v") == 0)  // view
+            //     *state = INIT;
             else if (strcmp(command, "r") == 0)  // register
-                *state = CHECK_IF_LOGGED_IN;
-            else if (strcmp(command, "l") == 0)  // login
-                *state = CHECK_USERNAME;
+                *state = REGISTER;
+            // else if (strcmp(command, "l") == 0)  // login
+            //     *state = CHECK_USERNAME;
             else if (strcmp(command, "q") == 0)  // quit
                 *state = QUIT;
             else
@@ -488,54 +519,46 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
             *state = INIT;
             break;
 
-        case CHECK_USERNAME:
-            rv = checkUsername();
-            if (rv == 0){
-                *state = CHECK_PASSWORD;
-            }
-            else {
-                *state = INIT;   
-            }
-            break;
 
-        case CHECK_PASSWORD:
-            rv = checkPassowrd();
-            if (rv == 0){
-                *state = LOGIN;
-            }
-            else {
-                *state = INIT;   
-            }
-            break;
-
-        case CHECK_IF_LOGGED_IN:
-            rv = checkIfLoggedIn();
-            if (rv == 0){
-                *state = REGISTER;
-            }
-            else {
-                *state = INIT;
-            }
-            break;
-        
+    
         case REGISTER:
             *state = PICK_USERNAME;
             break;
-        
+
         case PICK_USERNAME:
-            *state = PICK_PASSWORD;
-            break;
-        
-        case PICK_PASSWORD:
-            rv = pickPassword();
+            rv = usernameIsAvailable();
             if (rv == 0){
-                *state = LOGIN;
+                *state = PICK_PASSWORD;
             }
             else {
                 *state = PICK_USERNAME;
             }
             break;
 
+        case PICK_PASSWORD:
+            *state = SAVE_CREDENTIAL;
+            break;
+    
+        case SAVE_CREDENTIAL:
+            *state = LOGIN;
+            break;
+        
+        case LOGIN:
+
+            break;
+
+        case QUIT:
+            *state = INIT;  // makes no sense because it quits anyway.
+            break;
+
+
+
+
+
+
+
+
+        #if 0
         case LOGIN:
             if      (strcmp(command, "h") == 0)  // help
                 *state = HELP_LOGGED_IN;
@@ -548,6 +571,8 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
             else if (strcmp(command, "q") == 0)  // quit
                 *state = QUIT;
             break;
+
+
         case HELP_LOGGED_IN:
             *state = LOGIN;
             break;
@@ -575,22 +600,10 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
                 *state = LOGIN;
             }
             break;
+        #endif
 
-        case RELEASE:
-            *state = LOGIN;
-            break;
-
-        case VIEW:
-            *state = LOGIN;
-            break;
-
-        case LOGOUT:
-            *state = INIT;
-            break;
-
-        case QUIT:
-            *state = INIT;  // makes no sense tho, it's quitting anyway...
-            break;
+        
+        
 
         default:
             *state = INIT;
@@ -598,6 +611,13 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
     
     return  state;
 }
+
+
+int usernameIsAvailable(){
+    return 0;
+}
+
+
 
 
 
@@ -613,7 +633,10 @@ int checkPassowrd(){
 int checkIfLoggedIn(){
     return 0;
 }
-int pickPassword(){
+
+
+
+int checkIfUsernameAlreadyRegistered(){
     return 0;
 }
 

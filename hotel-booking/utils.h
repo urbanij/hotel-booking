@@ -48,25 +48,31 @@ typedef enum {
 
     HELP_UNLOGGED,          // prints the help message and goes back to init.
 
-    CHECK_USERNAME,
-    CHECK_PASSWORD,
-
-    CHECK_IF_LOGGED_IN,     // checks whether the user is already logged-in
+    
     REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
     PICK_USERNAME,
-    PICK_PASSWORD,    
-
+    PICK_PASSWORD,   
+    
+    SAVE_CREDENTIAL, 
     LOGIN,                  // the user is inside the system and can send commands that requires login
-    HELP_LOGGED_IN,
-    CHECK_IF_FULL,          // checks whether the hotel-rooms are sold-out.
-    RESERVE,                // if not sold out, book a room.
 
-    CHECK_IF_VALID_ENTRY,   // checks whether the user has actually reserved a room or not.
-    RELEASE,                // cancel booking
-
-    VIEW,                   // show list of rooms booked by the logged-in user
-    LOGOUT,                 // go back to INIT
     QUIT                    // closes connection with client
+
+
+    // CHECK_USERNAME,
+    // CHECK_PASSWORD,
+
+    
+    // HELP_LOGGED_IN,
+    // CHECK_IF_FULL,          // checks whether the hotel-rooms are sold-out.
+    // RESERVE,                // if not sold out, book a room.
+
+    // CHECK_IF_VALID_ENTRY,   // checks whether the user has actually reserved a room or not.
+    // RELEASE,                // cancel booking
+
+    // VIEW,                   // show list of rooms booked by the logged-in user
+    // LOGOUT,                 // go back to INIT
+    
 } server_fsm_state_t;
 
 
@@ -77,8 +83,6 @@ typedef enum {
 typedef enum {
     CL_INIT,
     
-    INVALID,
-
     SEND_HELP,
     READ_HELP_RESP,
 
@@ -89,20 +93,29 @@ typedef enum {
 
     SEND_USERNAME,
     READ_USERNAME_RESP,
+    
     SEND_PASSWORD,
     READ_PASSWORD_RESP,
 
-    SEND_RELEASE,
-    READ_RELEASE_RESP,
 
-    SEND_RESERVE,
-    READ_RESERVE_RESP,
 
-    SEND_VIEW,
-    READ_VIEW_RESP,
 
-    SEND_LOGOUT,
-    READ_LOGOUT_RESP
+    INVALID
+
+
+    
+
+    // SEND_RELEASE,
+    // READ_RELEASE_RESP,
+
+    // SEND_RESERVE,
+    // READ_RESERVE_RESP,
+
+    // SEND_VIEW,
+    // READ_VIEW_RESP,
+
+    // SEND_LOGOUT,
+    // READ_LOGOUT_RESP
 } client_fsm_state_t;
 
 
@@ -138,7 +151,7 @@ int         setupClient(Address* address);
 
 
 
-void        printServerFSMState(server_fsm_state_t* s);
+void        printServerFSMState(server_fsm_state_t* s, int* tid);
 void        printClientFSMState(client_fsm_state_t* s);
 
 
@@ -349,29 +362,24 @@ int setupClient(Address* address)
 
 
 
-void printServerFSMState(server_fsm_state_t* s)
+void printServerFSMState(server_fsm_state_t* s, int* tid)
 {
     const char* fsm_state_name[] = {
-        "INIT", 
+        "INIT",
+
         "HELP_UNLOGGED",
-        "CHECK_USERNAME",
-        "CHECK_PASSWORD",
-        "CHECK_IF_LOGGED_IN",
+
         "REGISTER",
         "PICK_USERNAME",
         "PICK_PASSWORD",
+    
+        "SAVE_CREDENTIAL",
         "LOGIN",
-        "HELP_LOGGED_IN",
-        "CHECK_IF_FULL",
-        "RESERVE",
-        "CHECK_IF_VALID_ENTRY",
-        "RELEASE",
-        "VIEW",
-        "LOGOUT",
-        "QUIT"    
+
+        "QUIT"
     };
 
-    printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
+    printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, fsm_state_name[*s]);
     return;
 
 }
@@ -383,8 +391,6 @@ void printClientFSMState(client_fsm_state_t* s)
     const char* fsm_state_name[] = {
         "CL_INIT",
     
-        "INVALID",
-
         "SEND_HELP",
         "READ_HELP_RESP",
 
@@ -395,20 +401,12 @@ void printClientFSMState(client_fsm_state_t* s)
 
         "SEND_USERNAME",
         "READ_USERNAME_RESP",
+    
         "SEND_PASSWORD",
         "READ_PASSWORD_RESP",
 
-        "SEND_RELEASE",
-        "READ_RELEASE_RESP",
-
-        "SEND_RESERVE",
-        "READ_RESERVE_RESP",
-
-        "SEND_VIEW",
-        "READ_VIEW_RESP",
-
-        "SEND_LOGOUT",
-        "READ_LOGOUT_RESP"
+        "INVALID"
+    
     };
 
     printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
