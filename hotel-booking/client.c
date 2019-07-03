@@ -94,8 +94,6 @@ int checkPasswordValidity();
 int main(int argc, char** argv)
 {
 
-    state = CL_INIT;
-
     // reading arguments from stdin
     Address address = readArguments(argc, argv);
     repr_addr(&address);   // print address
@@ -116,13 +114,23 @@ int main(int argc, char** argv)
     char username[20];
     char password[30];
 
-    int temporary_cycle_counter = 0;
+    #define LOCK_INFINITE_CYCLE 0
+    #if LOCK_INFINITE_CYCLE
+        int temporary_cycle_counter = 0;
+    #endif
+
+
+
+    state = CL_INIT;
 
     while (1) 
     {
-        temporary_cycle_counter ++;
+        #if LOCK_INFINITE_CYCLE
+            temporary_cycle_counter ++;
 
-        if (temporary_cycle_counter > 20) break;    // prevent inf loop
+            if (temporary_cycle_counter > 20) break;    // prevent inf loop
+        #endif 
+
 
         #if 0
         memset(command, '\0', BUFSIZE);
@@ -257,7 +265,10 @@ int main(int argc, char** argv)
                         fgets(command, 20, stdin);          // `\n` is included in command thus I
                         command[strlen(command)-1] = '\0';  // replace it with the string termination char
                     #endif
+                    
                     break;
+
+
 
                 #if 1
                 case INVALID:
@@ -273,6 +284,10 @@ int main(int argc, char** argv)
                     writeSocket(sockfd, "h");   // trims the command to the first char only
                                                 // since it uniquely indentifies the command. 
                                                 // there's not need to ship the whole string
+                    break;
+
+                case SEND_HELP_LOGGED:
+                    writeSocket(sockfd, "hh");
                     break;
 
                 case READ_HELP_RESP:
@@ -296,7 +311,9 @@ int main(int argc, char** argv)
 
                 case SEND_USERNAME:
                     printf("> ");
-                    scanf("%s", username);
+                    fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
+                    username[strlen(username)-1] = '\0';
+                    
                     writeSocket(sockfd, username); 
                     memset(username, '\0', sizeof(username));
                     break;
@@ -308,7 +325,9 @@ int main(int argc, char** argv)
 
                 case SEND_PASSWORD:
                     printf("> ");
-                    scanf("%s", password);
+                    fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
+                    username[strlen(username)-1] = '\0';
+
                     writeSocket(sockfd, password);
                     memset(password, '\0', sizeof(password));
                     break;
@@ -316,18 +335,30 @@ int main(int argc, char** argv)
                 case READ_PASSWORD_RESP:
                     readSocket(sockfd, command);  // OK: Account was successfully setup.
                     printf("%s\n", command);
+                    // memset(command, '\0', BUFSIZE);
 
                     readSocket(sockfd, command);  // Successfully registerd, you are now logged in
                     printf("%s\n", command);
+                    // memset(command, '\0', BUFSIZE);
 
+                    break;
+
+                case CL_LOGIN:
+                    printf("\033[92m(logged-in)\x1b[0m> ");
+                    
+                    fgets(command, 20, stdin);          // `\n` is included in command thus I
+                    command[strlen(command)-1] = '\0';  // replace it with the string termination char
                     break;
 
                 
             }
 
+
+
             updateClientFSM(&state, command);
 
             printClientFSMState(&state);
+            // printf("%s", printClientFSMState(state));
 
 
 
@@ -383,6 +414,10 @@ client_fsm_state_t* updateClientFSM(client_fsm_state_t* state, char* command)
         case SEND_HELP:
             *state = READ_HELP_RESP;
             break;
+
+        case SEND_HELP_LOGGED:
+            *state = READ_HELP_RESP;
+            break;
         
         case READ_HELP_RESP:
             *state = CL_INIT;
@@ -425,9 +460,21 @@ client_fsm_state_t* updateClientFSM(client_fsm_state_t* state, char* command)
             break;
 
         case READ_PASSWORD_RESP:
-            *state = CL_INIT;
+            *state = CL_LOGIN;
 
         
+        case CL_LOGIN:
+            if      (strcmp(command, "help") == 0)  
+                *state = SEND_HELP_LOGGED;
+            // else if (strcmp(command, "view") == 0) 
+            //     *state = SEND_VIEW;  
+            // else if (strcmp(command, "reserve") == 0) 
+            //      *state = SEND_RESERVE;
+            else if (strcmp(command, "quit") == 0)
+                *state = SEND_QUIT;
+            // else
+            //     *state = INVALID;
+            break;
 
 
 

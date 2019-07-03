@@ -47,6 +47,7 @@ typedef enum {
                             // next state.
 
     HELP_UNLOGGED,          // prints the help message and goes back to init.
+    HELP_LOGGED_IN,
 
     
     REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
@@ -84,7 +85,11 @@ typedef enum {
     CL_INIT,
     
     SEND_HELP,
+    SEND_HELP_LOGGED,
+
     READ_HELP_RESP,
+
+    
 
     SEND_QUIT,
 
@@ -98,6 +103,7 @@ typedef enum {
     READ_PASSWORD_RESP,
 
 
+    CL_LOGIN,
 
 
     INVALID
@@ -361,25 +367,28 @@ int setupClient(Address* address)
 
 
 
-
 void printServerFSMState(server_fsm_state_t* s, int* tid)
 {
-    const char* fsm_state_name[] = {
-        "INIT",
+    char* rv;
 
-        "HELP_UNLOGGED",
+    switch (*s)
+    {
+        case INIT:                  rv = "INIT";                break;
 
-        "REGISTER",
-        "PICK_USERNAME",
-        "PICK_PASSWORD",
-    
-        "SAVE_CREDENTIAL",
-        "LOGIN",
+        case HELP_UNLOGGED:         rv = "HELP_UNLOGGED";       break;
+        case HELP_LOGGED_IN:        rv = "HELP_LOGGED_IN";      break;
 
-        "QUIT"
-    };
+        case REGISTER:              rv = "REGISTER";            break;
+        case PICK_USERNAME:         rv = "PICK_USERNAME";       break;
+        case PICK_PASSWORD:         rv = "PICK_PASSWORD";       break;
 
-    printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, fsm_state_name[*s]);
+        case SAVE_CREDENTIAL:       rv = "SAVE_CREDENTIAL";     break;
+        case LOGIN:                 rv = "LOGIN";               break;
+
+        case QUIT:                  rv = "QUIT";                break;
+    }
+
+    printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, rv);
     return;
 
 }
@@ -388,31 +397,42 @@ void printServerFSMState(server_fsm_state_t* s, int* tid)
 
 void printClientFSMState(client_fsm_state_t* s)
 {
-    const char* fsm_state_name[] = {
-        "CL_INIT",
-    
-        "SEND_HELP",
-        "READ_HELP_RESP",
+    char* rv;
 
-        "SEND_QUIT",
+    switch (*s) 
+    {
+        case CL_INIT:               rv = "CL_INIT";             break;
 
-        "SEND_REGISTER",
-        "READ_REGISTER_RESP",
+        case SEND_HELP:             rv = "SEND_HELP";           break;
+        case SEND_HELP_LOGGED:      rv = "SEND_HELP_LOGGED";    break;
 
-        "SEND_USERNAME",
-        "READ_USERNAME_RESP",
-    
-        "SEND_PASSWORD",
-        "READ_PASSWORD_RESP",
+        case READ_HELP_RESP:        rv = "READ_HELP_RESP";      break;
 
-        "INVALID"
-    
-    };
+        case SEND_QUIT:             rv = "SEND_QUIT";           break;
 
-    printf("\x1b[90mstate: %s\x1b[0m\n", fsm_state_name[*s]);
+        case SEND_REGISTER:         rv = "SEND_REGISTER";       break;
+        case READ_REGISTER_RESP:    rv = "READ_REGISTER_RESP";  break;
+
+        case SEND_USERNAME:         rv = "SEND_USERNAME";       break;
+        case READ_USERNAME_RESP:    rv = "READ_USERNAME_RESP";  break;
+
+        case SEND_PASSWORD:         rv = "SEND_PASSWORD";       break;
+        case READ_PASSWORD_RESP:    rv = "READ_PASSWORD_RESP";  break;
+
+        case CL_LOGIN:              rv = "CL_LOGIN";            break;
+
+        case INVALID:               rv = "INVALID";             break;
+    }
+    // printf("%s\n", rv);
+    printf("\x1b[90mstate: %s\x1b[0m\n", rv);
     return;
-
 }
+
+
+
+
+
+
 
 
 

@@ -384,12 +384,12 @@ void dispatcher (int conn_sockfd, int thread_index){
     while (1) 
     {
     
-        #if 1
-            // clean the pipes after receiveing each command.
-            memset(command,      '\0', BUFSIZE);
-            memset(booking.date, '\0', sizeof(booking.date));
-            memset(booking.code, '\0', sizeof(booking.code));
-        #endif
+
+        // clean the pipes after receiveing each command.
+        memset(command,      '\0', BUFSIZE);
+        memset(booking.date, '\0', sizeof(booking.date));
+        memset(booking.code, '\0', sizeof(booking.code));
+    
         
         
         #if 0
@@ -442,7 +442,7 @@ void dispatcher (int conn_sockfd, int thread_index){
                 readSocket(conn_sockfd, command);
                 printf("usernameee %s\n", command); // works
 
-                writeSocket(conn_sockfd, "username OK.");   // EDIT THIS!
+                writeSocket(conn_sockfd, "username OK.\nChoose password: ");   // EDIT THIS!
 
                 break;
 
@@ -503,8 +503,6 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
         case INIT:
             if      (strcmp(command, "h") == 0)  // help
                 *state = HELP_UNLOGGED;
-            // else if (strcmp(command, "v") == 0)  // view
-            //     *state = INIT;
             else if (strcmp(command, "r") == 0)  // register
                 *state = REGISTER;
             // else if (strcmp(command, "l") == 0)  // login
@@ -518,7 +516,6 @@ server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
         case HELP_UNLOGGED:
             *state = INIT;
             break;
-
 
     
         case REGISTER:
