@@ -28,6 +28,15 @@
 #define USER_FILE               "users.txt" // text file containig users and encrypted passwords
 
 
+
+
+// fancy options:
+#define HELP_MESSAGE_TYPE_1     0 // if 1 uses type 1, else type2
+
+
+
+
+
 #endif
 
 

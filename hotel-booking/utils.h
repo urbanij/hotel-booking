@@ -42,20 +42,32 @@
  * main FSM states          
  */
 typedef enum {
+    // INIT
     INIT,                   // starting point of the program, waits for
                             // inbound commands to be dispatched to the
                             // next state.
 
+    // HELP
     HELP_UNLOGGED,          // prints the help message and goes back to init.
     HELP_LOGGED_IN,
 
     
+    // REGISTER
     REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
     PICK_USERNAME,
     PICK_PASSWORD,   
     
     SAVE_CREDENTIAL, 
+    
+    // LOGIN
+    LOGIN_REQUEST,
+    CHECK_USERNAME,
+    CHECK_PASSWORD,
+    GRANT_ACCESS,
     LOGIN,                  // the user is inside the system and can send commands that requires login
+
+
+
 
     QUIT                    // closes connection with client
 
@@ -82,18 +94,20 @@ typedef enum {
  * main FSM states          
  */
 typedef enum {
+    // CLIENT INIT STATE
     CL_INIT,
     
+    // HELP
     SEND_HELP,
     SEND_HELP_LOGGED,
 
     READ_HELP_RESP,
     READ_HELP_LOGGED_RESP,
 
-    
-
+    // QUIT
     SEND_QUIT,
 
+    // REGISTER
     SEND_REGISTER,
     READ_REGISTER_RESP,
 
@@ -104,11 +118,23 @@ typedef enum {
     READ_PASSWORD_RESP,
 
 
-    CL_LOGIN,
 
+
+    // LOGOUT
     SEND_LOGOUT,
 
+    // LOGIN
+    SEND_LOGIN,
+    READ_LOGIN_RESP,          
+    SEND_LOGIN_USERNAME,       
+    READ_LOGIN_USERNAME_RESP,  
+    SEND_LOGIN_PASSWORD,       
+    READ_LOGIN_PASSWORD_RESP,
+    // CLIENT LOGIN STATE
+    CL_LOGIN,
 
+
+    // INVALID
     INVALID_UNLOGGED,
     INVALID_LOGGED_IN
 
@@ -390,6 +416,14 @@ void printServerFSMState(server_fsm_state_t* s, int* tid)
         case LOGIN:                 rv = "LOGIN";               break;
 
         case QUIT:                  rv = "QUIT";                break;
+        
+        case LOGIN_REQUEST:         rv = "LOGIN_REQUEST";       break;
+                
+        case CHECK_USERNAME:        rv = "CHECK_USERNAME";      break;
+                
+        case CHECK_PASSWORD:        rv = "CHECK_PASSWORD";      break;
+                
+        case GRANT_ACCESS:          rv = "GRANT_ACCESS";        break;
     }
 
     printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, rv);
@@ -430,6 +464,12 @@ void printClientFSMState(client_fsm_state_t* s)
         case INVALID_LOGGED_IN:     rv = "INVALID_LOGGED_IN";   break;
 
         case SEND_LOGOUT:           rv = "SEND_LOGOUT";         break;
+        case SEND_LOGIN:            rv = "SEND_LOGIN";      break;
+        case READ_LOGIN_RESP:           rv = "READ_LOGIN_RESP";     break;          
+        case SEND_LOGIN_USERNAME:           rv = "SEND_LOGIN_USERNAME";     break;       
+        case READ_LOGIN_USERNAME_RESP:          rv = "READ_LOGIN_USERNAME_RESP";        break;  
+        case SEND_LOGIN_PASSWORD:           rv = "SEND_LOGIN_PASSWORD";     break;       
+        case READ_LOGIN_PASSWORD_RESP:          rv = "READ_LOGIN_PASSWORD_RESP";        break;
     }
     // printf("%s\n", rv);
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);

@@ -44,41 +44,41 @@
 
 
 
+#if HELP_MESSAGE_TYPE_1
+    #define HELP_UNLOGGED_MESSAGE_1 "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m register \x1b[0m --> register an account\n\
+            \x1b[36m login    \x1b[0m --> log into the system\n\
+            \x1b[36m quit     \x1b[0m --> quit\n\
+            \x1b[36m logout   \x1b[0m --> log out\n               (log-in required)\n\
+            \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
+            \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
+    #define HELP_LOGGED_IN_MESSAGE_1 "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m reserve  \x1b[0m --> book a room\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking\n\
+            \x1b[36m view     \x1b[0m --> show current bookings\n\
+            \x1b[36m logout   \x1b[0m --> log out\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n\
+            \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
+            \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
+#else
 
-#define HELP_UNLOGGED_MESSAGE_1 "Commands:\n\
-        \x1b[36m help     \x1b[0m --> show commands\n\
-        \x1b[36m register \x1b[0m --> register an account\n\
-        \x1b[36m login    \x1b[0m --> log into the system\n\
-        \x1b[36m quit     \x1b[0m --> quit\n\
-        \x1b[36m logout   \x1b[0m --> log out\n               (log-in required)\n\
-        \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
-        \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
-        \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
+    #define HELP_UNLOGGED_MESSAGE_2 "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m register \x1b[0m --> register an account\n\
+            \x1b[36m login    \x1b[0m --> log into the system\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
 
-#define HELP_LOGGED_IN_MESSAGE_1 "Commands:\n\
-        \x1b[36m help     \x1b[0m --> show commands\n\
-        \x1b[36m reserve  \x1b[0m --> book a room\n\
-        \x1b[36m release  \x1b[0m --> cancel a booking\n\
-        \x1b[36m view     \x1b[0m --> show current bookings\n\
-        \x1b[36m logout   \x1b[0m --> log out\n\
-        \x1b[36m quit     \x1b[0m --> log out and quit.\n\
-        \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
-        \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
-
-#define HELP_UNLOGGED_MESSAGE_2 "Commands:\n\
-        \x1b[36m help     \x1b[0m --> show commands\n\
-        \x1b[36m register \x1b[0m --> register an account\n\
-        \x1b[36m login    \x1b[0m --> log into the system\n\
-        \x1b[36m quit     \x1b[0m --> log out and quit.\n"
-
-#define HELP_LOGGED_IN_MESSAGE_2 "Commands:\n\
-        \x1b[36m help     \x1b[0m --> show commands\n\
-        \x1b[36m reserve  \x1b[0m --> book a room\n\
-        \x1b[36m release  \x1b[0m --> cancel a booking\n\
-        \x1b[36m view     \x1b[0m --> show current bookings\n\
-        \x1b[36m logout   \x1b[0m --> log out\n\
-        \x1b[36m quit     \x1b[0m --> log out and quit.\n"
-
+    #define HELP_LOGGED_IN_MESSAGE_2 "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m reserve  \x1b[0m --> book a room\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking\n\
+            \x1b[36m view     \x1b[0m --> show current bookings\n\
+            \x1b[36m logout   \x1b[0m --> log out\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
+#endif
 
 
 /********************************/
@@ -155,7 +155,23 @@ int     updateUsersRecordFile   (char*, char*);
  *
  */
 char*   encryptPassword         (char* password);
+
+/**
+ *
+ */
 void    makeSalt                (char* salt);
+
+/**
+ *
+ */
+int     checkIfUsernameAlreadyRegistered();
+
+/**
+ *
+ */
+int     checkIfPasswordMatches();
+
+
 
 
 
@@ -177,11 +193,6 @@ int checkPassowrd();
  *
  */
 int checkIfLoggedIn();
-
-/**
- *
- */
-int checkIfUsernameAlreadyRegistered();
 
 /**
  *
@@ -430,8 +441,8 @@ void dispatcher (int conn_sockfd, int thread_index){
                     state = HELP_UNLOGGED;
                 else if (strcmp(command, "r") == 0)  // register
                     state = REGISTER;
-                // else if (strcmp(command, "l") == 0)  // login
-                //     state = CHECK_USERNAME;
+                else if (strcmp(command, "l") == 0)  // login
+                    state = LOGIN_REQUEST;
                 else if (strcmp(command, "q") == 0)  // quit
                     state = QUIT;
                 else
@@ -498,6 +509,51 @@ void dispatcher (int conn_sockfd, int thread_index){
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
 
+            // update FSM
+                state = LOGIN;
+                break;
+
+            case LOGIN_REQUEST:
+            // do stuff
+                writeSocket(conn_sockfd, "Insert username: ");
+            // update FSM
+                state = CHECK_USERNAME;
+                break;
+
+            case CHECK_USERNAME:
+            // do stuff
+                readSocket(conn_sockfd, command);
+                rv = checkIfUsernameAlreadyRegistered(command);
+                if (rv == 0){
+                    state = CHECK_PASSWORD;
+                    writeSocket(conn_sockfd, "Y");  // Y stands for OK
+                }
+                else {
+                    state = INIT;
+                    writeSocket(conn_sockfd, "N");  // N stands for NOT OK
+                }
+            // update FSM
+                
+                break;
+
+            case CHECK_PASSWORD:
+            // do stuff
+                readSocket(conn_sockfd, command);
+                rv = checkIfPasswordMatches(command);
+                if (rv == 0){
+                    state = GRANT_ACCESS;
+                }
+                else {
+                    state = INIT;
+                    writeSocket(conn_sockfd, "N");  // N stands for NOT OK
+                }
+            // update FSM
+                
+                break;
+
+            case GRANT_ACCESS:
+            // do stuff
+                writeSocket(conn_sockfd, "Y");  // Y stands for OK
             // update FSM
                 state = LOGIN;
                 break;
@@ -660,6 +716,13 @@ void makeSalt(char* salt) {
 
 
 
+int checkIfUsernameAlreadyRegistered(){
+    return 0;
+}
+int checkIfPasswordMatches(){
+    return 0;
+}
+
 
 
 
@@ -676,9 +739,7 @@ int checkIfLoggedIn(){
 
 
 
-int checkIfUsernameAlreadyRegistered(){
-    return 0;
-}
+
 
 int checkIfFull(){
     return 0;

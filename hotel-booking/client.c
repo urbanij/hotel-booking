@@ -105,6 +105,10 @@ int main(int argc, char** argv)
     char username[20];
     char password[30];
 
+    User* user = (User*) malloc(sizeof(User));
+    memset(user, '\0', sizeof(User));
+
+
     #define LOCK_INFINITE_CYCLE 0
     #if LOCK_INFINITE_CYCLE
         int temporary_cycle_counter = 0;
@@ -264,7 +268,7 @@ int main(int argc, char** argv)
                     if      (strcmp(command, "help") == 0)  
                         state = SEND_HELP;
                     else if (strcmp(command, "login") == 0) 
-                        state = SEND_USERNAME; 
+                        state = SEND_LOGIN; 
                     else if (strcmp(command, "register") == 0) 
                         state = SEND_REGISTER;
                     // else if (strcmp(command, "view") == 0) 
@@ -362,6 +366,11 @@ int main(int argc, char** argv)
                     username[strlen(username)-1] = '\0';
                     
                     writeSocket(sockfd, username); 
+
+                    // to be used later when i'm logged in and display the username
+                    strcpy(user->username, username); 
+
+                    // clean username
                     memset(username, '\0', sizeof(username));
                 
                 // update FSM
@@ -418,14 +427,89 @@ int main(int argc, char** argv)
                     printf("%s\n", command);
                     // memset(command, '\0', BUFSIZE);
 
-                
                 // update FSM
                     state = CL_LOGIN;
                     break;
 
+                case SEND_LOGIN:
+                // do stuff
+                    writeSocket(sockfd, "l");         
+                // update FSM
+                    state = READ_LOGIN_RESP;
+                    break;
+
+                case READ_LOGIN_RESP:
+                // do stuff
+                    readSocket(sockfd, command);
+                    printf("%s\n", command);
+                // update FSM
+                    state = SEND_LOGIN_USERNAME;
+                    break;
+
+                case SEND_LOGIN_USERNAME:
+                // do stuff
+                    printf(": ");
+                    fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
+                    username[strlen(username)-1] = '\0';
+                    writeSocket(sockfd, username);
+
+                    // to be used later when i'm logged in and display the username
+                    strcpy(user->username, username); 
+
+                    memset(username, '\0', sizeof(username));
+                    
+                // update FSM
+                    state = READ_LOGIN_USERNAME_RESP;
+                    break;
+
+                case READ_LOGIN_USERNAME_RESP:
+                // do stuff
+                    readSocket(sockfd, command);
+                    if (strcmp(command, "Y") == 0){
+                        printf("%s\n", "OK, insert password: ");
+                        state = SEND_LOGIN_PASSWORD;
+                    }
+                    else {
+                        printf("%s\n", "\x1b[31m\033[1musername unknown.\x1b[0m\nGo ahead and register first.");
+                        //                ^--red  ^--bold
+                        state = CL_INIT;
+                    }
+                    
+                // update FSM
+                    
+                    break;
+
+                case SEND_LOGIN_PASSWORD:
+                // do stuff
+                    printf(": ");
+                    fgets(password, 20, stdin);          // `\n` is included in password thus I replace it with `\0`
+                    password[strlen(password)-1] = '\0';
+                    writeSocket(sockfd, password);
+                    memset(password, '\0', sizeof(password));
+                // update FSM
+                    state = READ_LOGIN_PASSWORD_RESP;
+                    break;
+
+                case READ_LOGIN_PASSWORD_RESP:
+                // do stuff
+                    readSocket(sockfd, command);
+                    if (strcmp(command, "Y") == 0){
+                        printf("%s\n", "OK, access granted.");
+                        state = CL_LOGIN;
+                    }
+                    else {
+                        printf("%s\n", "\x1b[31m\033[1mwrong password.\x1b[0m Try again from start.");
+                        //                ^--red  ^--bold
+                        state = CL_INIT;
+                    }
+                // update FSM
+                    
+                    break;
+
                 case CL_LOGIN:
                 // do stuff
-                    printf("\033[92m(logged-in)\x1b[0m> ");
+                    // printf("\033[92m(logged-in)\x1b[0m> ");
+                    printf("\033[92m(%s)\x1b[0m> ", user->username);
                     
                     fgets(command, 20, stdin);          // `\n` is included in command thus I
                     command[strlen(command)-1] = '\0';  // replace it with the string termination char
@@ -457,6 +541,9 @@ int main(int argc, char** argv)
                     writeSocket(sockfd, "logout");
                 // update FSM
                     state = CL_INIT;
+
+                    // to be used later when i'm logged in and display the username
+                    memset(user, '\0', sizeof(User));
 
                     break;
 
