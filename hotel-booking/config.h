@@ -25,7 +25,7 @@
 
 #define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user
 
-
+#define USER_FILE               "users.txt" // text file containig users and encrypted passwords
 
 
 #endif

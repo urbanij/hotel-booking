@@ -120,25 +120,30 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 /**
  * thread handler function
  */
-void*       threadHandler   (void* opaque);
+void*   threadHandler       (void* opaque);
 
 /**
  * command dispatcher: runs inside the threadHandler functions 
  * and dispatches the inbound commands to the executive functions.
  */
-void        dispatcher      (int sockfd, int thread_index);
+void    dispatcher          (int sockfd, int thread_index);
 
-// FSM related
+/**
+ * takes a username `u` and opens the file 
+ * `users.txt` to see if such username is
+ * therein contained.
+ * returns 0 if it's not contained, -1 otherwise.
+ */
+int     usernameIsAvailable (char* u);
+
+
 /**
  *
  */
-server_fsm_state_t* updateServerFSM       (server_fsm_state_t* state, char* command);
+int updateUsersRecordFile(char*, char*);
 
 
-/**
- *
- */
-int usernameIsAvailable();
+
 
 
 
@@ -381,6 +386,10 @@ void dispatcher (int conn_sockfd, int thread_index){
 
 
 
+    User* user = (User*) malloc(sizeof(User));
+    memset(user->username, '\0', sizeof(user->username));
+    memset(user->actual_password, '\0', sizeof(user->actual_password));
+
     while (1) 
     {
     
@@ -391,98 +400,126 @@ void dispatcher (int conn_sockfd, int thread_index){
         memset(booking.code, '\0', sizeof(booking.code));
     
         
-        
-        #if 0
-        if (strcmp(command, "res") == 0){                   // got reserve
-            readSocket(conn_sockfd, booking.date);
-        }
-        else if (strcmp(command, "rel") == 0){              // got release
-            // if i'm receveing release i also want to read
-            // the remaining arguments it carries.
-
-            char room_string[6]; // will store the room prior to be converted to integer.
-            readSocket(conn_sockfd, booking.date);
-            readSocket(conn_sockfd, room_string);
-            booking.room = atoi(room_string);
-            readSocket(conn_sockfd, booking.code);
-
-            printf("Reservation #%s on %s, room %d\n", 
-                booking.code, booking.date, booking.room);
-        }
-        
-        else if (strcmp(command, "q") == 0){
-            printf("%s\n", "quitting");     // continue here....
-            break;
-        }
-        #else
 
         
 
-        #if 1
+
+        int rv;
+
         switch (state)
         {
             case INIT:
+            // do stuff
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
+
+            // update FSM
+                if      (strcmp(command, "h") == 0)  // help
+                    state = HELP_UNLOGGED;
+                else if (strcmp(command, "r") == 0)  // register
+                    state = REGISTER;
+                // else if (strcmp(command, "l") == 0)  // login
+                //     state = CHECK_USERNAME;
+                else if (strcmp(command, "q") == 0)  // quit
+                    state = QUIT;
+                else
+                    state = INIT;
                 break;
+    
 
             case HELP_UNLOGGED:
+            // do stuff
                 // printf(HELP_UNLOGGED_MESSAGE_2);
                 writeSocket(conn_sockfd, HELP_UNLOGGED_MESSAGE_2);
+
+            // update FSM
+                state = INIT;
                 break;
 
 
 
             case REGISTER:
+            // do stuff
                 printf("%s\n", "400 received register.");
                 writeSocket(conn_sockfd, "Choose username: "); // works
+
+            // update FSM
+                state = PICK_USERNAME;
                 break;
 
             case PICK_USERNAME:
+            // do stuff
                 readSocket(conn_sockfd, command);
-                printf("usernameee %s\n", command); // works
+                strcpy(user->username, command);
 
-                writeSocket(conn_sockfd, "username OK.\nChoose password: ");   // EDIT THIS!
+                printf("usernameee %s\n", user->username); // works
+
+            // update FSM
+
+                rv = usernameIsAvailable(user->username);
+                if (rv == 0){
+                    state = PICK_PASSWORD;
+                    writeSocket(conn_sockfd, "Y");  // Y stands for: "username OK.\nChoose password: "
+                }
+                else {
+                    state = PICK_USERNAME;
+                    writeSocket(conn_sockfd, "N");  // N stands for: "username already taken, pick another one: "
+                }
 
                 break;
 
             case PICK_PASSWORD:
+            // do stuff
                 readSocket(conn_sockfd, command);
-                printf("passworrrd %s\n", command);
+                strcpy(user->actual_password, command);
+
+                printf("passworrrd %s\n", user->actual_password);
+
+            // update FSM
+                state = SAVE_CREDENTIAL;
                 break;
 
             case SAVE_CREDENTIAL:
+            // do stuff
+                updateUsersRecordFile(user->username, user->actual_password);
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
+
+            // update FSM
+                state = LOGIN;
                 break;
 
             case LOGIN:
+            // do stuff
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
                 
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
+            
+            // update FSM
+
                 break;
 
 
             
             case QUIT:
+            // do stuff
                 free(state_pointer);
+                
+                free(user);
+    
+                
                 printf("%s\n", "quitting");     // continue here....
                 goto ABORT;
+            // update FSM
 
             default:
                 break;
 
         }
-        #endif
-
-
-        updateServerFSM(&state, command);
-
         
         
         printServerFSMState(&state, &thread_index);
             
-        #endif
     }
 
 ABORT:
@@ -493,131 +530,62 @@ ABORT:
 
 
 
-server_fsm_state_t* updateServerFSM(server_fsm_state_t* state, char* command)
-{
-    int rv; 
-    
-    switch (*state)
-    {
 
-        case INIT:
-            if      (strcmp(command, "h") == 0)  // help
-                *state = HELP_UNLOGGED;
-            else if (strcmp(command, "r") == 0)  // register
-                *state = REGISTER;
-            // else if (strcmp(command, "l") == 0)  // login
-            //     *state = CHECK_USERNAME;
-            else if (strcmp(command, "q") == 0)  // quit
-                *state = QUIT;
-            else
-                *state = INIT;
-            break;
-            
-        case HELP_UNLOGGED:
-            *state = INIT;
-            break;
+int usernameIsAvailable(char* u){
+    char username[30];
+    char enc_pass[30];
+    char line[50];
 
-    
-        case REGISTER:
-            *state = PICK_USERNAME;
-            break;
+    FILE* users_file;
 
-        case PICK_USERNAME:
-            rv = usernameIsAvailable();
-            if (rv == 0){
-                *state = PICK_PASSWORD;
-            }
-            else {
-                *state = PICK_USERNAME;
-            }
-            break;
-
-        case PICK_PASSWORD:
-            *state = SAVE_CREDENTIAL;
-            break;
-    
-        case SAVE_CREDENTIAL:
-            *state = LOGIN;
-            break;
-        
-        case LOGIN:
-
-            break;
-
-        case QUIT:
-            *state = INIT;  // makes no sense because it quits anyway.
-            break;
-
-
-
-
-
-
-
-
-        #if 0
-        case LOGIN:
-            if      (strcmp(command, "h") == 0)  // help
-                *state = HELP_LOGGED_IN;
-            else if (strcmp(command, "v") == 0)  // view
-                *state = VIEW;
-            else if (strcmp(command, "res") == 0)  // reserve
-                *state = CHECK_IF_FULL;
-            else if (strcmp(command, "rel") == 0)  // release
-                *state = CHECK_IF_VALID_ENTRY;
-            else if (strcmp(command, "q") == 0)  // quit
-                *state = QUIT;
-            break;
-
-
-        case HELP_LOGGED_IN:
-            *state = LOGIN;
-            break;
-
-        case CHECK_IF_FULL:
-            rv = checkIfFull();
-            if (rv == 0){
-                *state = RESERVE;
-            }
-            else {
-                *state = LOGIN;
-            }
-            break;
-
-        case RESERVE:
-            *state = LOGIN;
-            break;
-
-        case CHECK_IF_VALID_ENTRY:
-            rv = checkIfValidEntry();
-            if (rv == 0){
-                *state = RELEASE;
-            }
-            else {
-                *state = LOGIN;
-            }
-            break;
-        #endif
-
-        
-        
-
-        default:
-            *state = INIT;
+    users_file = fopen(USER_FILE, "r");
+    if(users_file == NULL) {
+        return 0;   // no file exists, hence no username exists.
     }
-    
-    return  state;
+
+    // check whether the user is already in the file (= already registered)
+    while(fgets(line, sizeof(line), users_file)) {
+        sscanf(line, "%s %s\n", username, enc_pass);
+        
+        // checking whether `u` (i.e. username coming from the client) 
+        // matches `username` (i.e. username saved on the file in the server)
+        if (strcmp(u, username) == 0){
+            fclose(users_file);
+            return -1;  // found user in the file
+        }
+    }
+    return 0;           // username `u` is new to the system, hence the registration can proceed.
 }
 
 
-int usernameIsAvailable(){
+
+
+int updateUsersRecordFile(char* username, char* pass){
+
+    // pass has to be salted before storing
+    
+    FILE* users_file = fopen(USER_FILE, "a+");
+    if(users_file == NULL) {
+        perror_die("fopen() @ server.c:569");
+    }
+
+    // buffer (will) store the line to be add to the file.
+    char buffer[50];
+    memset(buffer, '\0', sizeof(buffer));
+
+    // creating the "payload"
+    strcat(buffer, username);
+    strcat(buffer, " ");
+    strcat(buffer, pass);
+
+    // add line
+    fprintf(users_file, "%s\n", buffer);
+
+    // close connection to file
+    fclose(users_file);
+
     return 0;
 }
-
-
-
-
-
 
 
 

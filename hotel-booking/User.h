@@ -14,14 +14,10 @@
 
 #include "Booking.h"
 
-typedef struct {
-    char*       username;
-    char*       hashed_passwd;
-} LoginInfo;
-
 
 typedef struct user {
-    LoginInfo   login_info;                     // his username and passowrd
+    char        username[20];
+    char        actual_password[20];
     Booking     booking[MAX_BOOKINGS_PER_USER]; // array to keep track of user's bookings
     int         active_bookings;                // how many active bookings he has
 } User;

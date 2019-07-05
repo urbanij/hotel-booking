@@ -2,6 +2,8 @@
 *.out
 *.o
 
+users.txt
+
 client_*
 server_*
 
