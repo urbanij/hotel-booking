@@ -41,11 +41,16 @@
 #include "Hotel.h"
 #include "User.h"
 
+
+
+
+
 #define HELP_UNLOGGED_MESSAGE_1 "Commands:\n\
         \x1b[36m help     \x1b[0m --> show commands\n\
         \x1b[36m register \x1b[0m --> register an account\n\
         \x1b[36m login    \x1b[0m --> log into the system\n\
-        \x1b[36m quit     \x1b[0m --> log out and quit.\n\
+        \x1b[36m quit     \x1b[0m --> quit\n\
+        \x1b[36m logout   \x1b[0m --> log out\n               (log-in required)\n\
         \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
         \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
         \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
@@ -55,6 +60,7 @@
         \x1b[36m reserve  \x1b[0m --> book a room\n\
         \x1b[36m release  \x1b[0m --> cancel a booking\n\
         \x1b[36m view     \x1b[0m --> show current bookings\n\
+        \x1b[36m logout   \x1b[0m --> log out\n\
         \x1b[36m quit     \x1b[0m --> log out and quit.\n\
         \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
         \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
@@ -70,7 +76,10 @@
         \x1b[36m reserve  \x1b[0m --> book a room\n\
         \x1b[36m release  \x1b[0m --> cancel a booking\n\
         \x1b[36m view     \x1b[0m --> show current bookings\n\
+        \x1b[36m logout   \x1b[0m --> log out\n\
         \x1b[36m quit     \x1b[0m --> log out and quit.\n"
+
+
 
 /********************************/
 /*                              */
@@ -120,13 +129,13 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 /**
  * thread handler function
  */
-void*   threadHandler       (void* opaque);
+void*   threadHandler           (void* opaque);
 
 /**
  * command dispatcher: runs inside the threadHandler functions 
  * and dispatches the inbound commands to the executive functions.
  */
-void    dispatcher          (int sockfd, int thread_index);
+void    dispatcher              (int sockfd, int thread_index);
 
 /**
  * takes a username `u` and opens the file 
@@ -134,16 +143,19 @@ void    dispatcher          (int sockfd, int thread_index);
  * therein contained.
  * returns 0 if it's not contained, -1 otherwise.
  */
-int     usernameIsAvailable (char* u);
+int     usernameIsAvailable     (char* u);
 
 
 /**
  *
  */
-int updateUsersRecordFile(char*, char*);
+int     updateUsersRecordFile   (char*, char*);
 
-
-
+/**
+ *
+ */
+char*   encryptPassword         (char* password);
+void    makeSalt                (char* salt);
 
 
 
@@ -481,8 +493,10 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             case SAVE_CREDENTIAL:
             // do stuff
-                updateUsersRecordFile(user->username, user->actual_password);
+                // password has to be hashed before storing it.
+                updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
+                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
 
             // update FSM
                 state = LOGIN;
@@ -490,13 +504,30 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             case LOGIN:
             // do stuff
-                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
                 
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
+
+                if      (strcmp(command, "hh") == 0)  // help
+                    state = HELP_LOGGED_IN;
+                else if (strcmp(command, "q") == 0)  // quit
+                    state = QUIT;
+                else if (strcmp(command, "logout") == 0) // logout
+                    state = INIT;
+                else
+                    state = INIT;
+                break;
             
             // update FSM
 
+                break;
+
+            case HELP_LOGGED_IN:
+            // do stuff
+                writeSocket(conn_sockfd, HELP_LOGGED_IN_MESSAGE_2);
+
+            // update FSM
+                state = LOGIN;
                 break;
 
 
@@ -560,9 +591,7 @@ int usernameIsAvailable(char* u){
 
 
 
-int updateUsersRecordFile(char* username, char* pass){
-
-    // pass has to be salted before storing
+int updateUsersRecordFile(char* username, char* hashed_password){
     
     FILE* users_file = fopen(USER_FILE, "a+");
     if(users_file == NULL) {
@@ -575,8 +604,8 @@ int updateUsersRecordFile(char* username, char* pass){
 
     // creating the "payload"
     strcat(buffer, username);
-    strcat(buffer, " ");
-    strcat(buffer, pass);
+    strcat(buffer, "\t\t");
+    strcat(buffer, hashed_password);
 
     // add line
     fprintf(users_file, "%s\n", buffer);
@@ -586,6 +615,52 @@ int updateUsersRecordFile(char* username, char* pass){
 
     return 0;
 }
+
+char* encryptPassword(char* password){
+    // encrypted password returned 
+    // (static because it has to outlive the time-scope of the function)
+    static char res[512];   
+    
+    char salt[2];           // salt
+
+    makeSalt(salt);         // making salt
+
+    // encrypt password
+    strncpy(res, crypt(password, salt), sizeof(res)); 
+    //             ^--- CRYPT(3)    BSD Library Functions Manual
+
+    return res;
+}
+
+
+void makeSalt(char* salt) {
+
+    int r;
+
+    // init random number generator
+    srand(time(NULL));
+    
+    // make sure salt chars are actual characters, not than special ASCII symbols
+    r = rand();
+    r = r % ('z' - '0');
+    salt[0] = '0' + r;
+    
+    r = rand();
+    r = r % ('z' - '0');
+    salt[1] = '0' + r;
+    
+    #if DEBUG
+        printf("Salt: %c%c\n", salt[0], salt[1]);
+    #endif
+}
+
+    
+
+
+
+
+
+
 
 
 

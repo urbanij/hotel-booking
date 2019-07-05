@@ -42,6 +42,7 @@
 #include "User.h"
 
 
+
 /********************************/
 /*                              */
 /*          global var          */
@@ -273,12 +274,12 @@ int main(int argc, char** argv)
                     else if (strcmp(command, "quit") == 0)
                         state = SEND_QUIT;
                     else
-                        state = INVALID;
+                        state = INVALID_UNLOGGED;
                     break;
     
 
 
-                case INVALID:
+                case INVALID_UNLOGGED:
                 // do stuff
                     /* command doesn't match anything the server is supposed 
                      * to receive hence i don't send anything into the socket.
@@ -300,14 +301,6 @@ int main(int argc, char** argv)
                     state = READ_HELP_RESP;
                     break;
 
-                case SEND_HELP_LOGGED:
-                // do stuff
-                    writeSocket(sockfd, "hh");
-                
-                // update FSM
-                    state = READ_HELP_RESP;
-                    break;
-
                 case READ_HELP_RESP:
                 // do stuff
                     readSocket(sockfd, response);
@@ -316,6 +309,25 @@ int main(int argc, char** argv)
                 // update FSM
                     state = CL_INIT;
                     break;
+
+                case SEND_HELP_LOGGED:
+                // do stuff
+                    writeSocket(sockfd, "hh");
+                
+                // update FSM
+                    state = READ_HELP_LOGGED_RESP;
+                    break;
+
+                case READ_HELP_LOGGED_RESP:
+                // do stuff
+                    readSocket(sockfd, response);
+                    printf("%s\n", response);
+                
+                // update FSM
+                    state = CL_LOGIN;
+                    break;
+
+
 
                 case SEND_QUIT:
                 // do stuff
@@ -363,8 +375,10 @@ int main(int argc, char** argv)
                         printf("%s\n", "username OK.\nChoose password: ");
                     }
                     else {
-                        printf("%s\n", "username already taken, pick another one: ");
+                        printf("%s\n", "\x1b[31m\033[1musername already taken.\x1b[0m\npick another one: ");
+                        //                ^--red  ^--bold
                     }
+
 
                 // update FSM
                     if (strcmp(command, "Y") == 0){
@@ -425,8 +439,25 @@ int main(int argc, char** argv)
                     //      state = SEND_RESERVE;
                     else if (strcmp(command, "quit") == 0)
                         state = SEND_QUIT;
-                    // else
-                    //     state = INVALID;
+                    else if (strcmp(command, "logout") == 0)
+                        state = SEND_LOGOUT;
+                    else
+                        state = INVALID_LOGGED_IN;
+                    break;
+
+                case INVALID_LOGGED_IN:
+                    printf("\x1b[33mInvalid command.\x1b[0m \n");
+                    state = CL_LOGIN;
+                    
+                    break;
+
+
+                case SEND_LOGOUT:
+                // do stuff
+                    writeSocket(sockfd, "logout");
+                // update FSM
+                    state = CL_INIT;
+
                     break;
 
                 default:

@@ -88,6 +88,7 @@ typedef enum {
     SEND_HELP_LOGGED,
 
     READ_HELP_RESP,
+    READ_HELP_LOGGED_RESP,
 
     
 
@@ -105,8 +106,11 @@ typedef enum {
 
     CL_LOGIN,
 
+    SEND_LOGOUT,
 
-    INVALID
+
+    INVALID_UNLOGGED,
+    INVALID_LOGGED_IN
 
 
     
@@ -407,6 +411,7 @@ void printClientFSMState(client_fsm_state_t* s)
         case SEND_HELP_LOGGED:      rv = "SEND_HELP_LOGGED";    break;
 
         case READ_HELP_RESP:        rv = "READ_HELP_RESP";      break;
+        case READ_HELP_LOGGED_RESP: rv = "READ_HELP_LOGGED_RESP";break;
 
         case SEND_QUIT:             rv = "SEND_QUIT";           break;
 
@@ -421,7 +426,10 @@ void printClientFSMState(client_fsm_state_t* s)
 
         case CL_LOGIN:              rv = "CL_LOGIN";            break;
 
-        case INVALID:               rv = "INVALID";             break;
+        case INVALID_UNLOGGED:      rv = "INVALID_UNLOGGED";    break;
+        case INVALID_LOGGED_IN:     rv = "INVALID_LOGGED_IN";   break;
+
+        case SEND_LOGOUT:           rv = "SEND_LOGOUT";         break;
     }
     // printf("%s\n", rv);
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);
