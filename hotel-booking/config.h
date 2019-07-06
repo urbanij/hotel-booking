@@ -27,6 +27,8 @@
 
 #define USER_FILE               "users.txt" // text file containig users and encrypted passwords
 
+#define DATABASE                "bookings.db"
+
 
 
 

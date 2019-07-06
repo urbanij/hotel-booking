@@ -129,10 +129,20 @@ void    makeSalt                (char* salt);
  */
 int     checkIfPasswordMatches  (char*, char*);
 
+/**
+ *
+ */
+int     checkDateValidity       ();
+
+/**
+ *
+ */
+int     checkAvailability       ();
+
+int saveReservation();
 
 
-
-
+// . . . . . . . . . . . . 
 
 
 
@@ -195,6 +205,13 @@ int main(int argc, char** argv)
     char ip_client[INET_ADDRSTRLEN];    // no idea...
     
 
+    // setup database
+    if (setupDatabase() != 0){
+        perror_die("database error: ");
+    }
+    #if DEBUG
+        printf("%s\n", "Database setup OK.");
+    #endif
 
 
     // initialize lock_g
@@ -547,6 +564,8 @@ void dispatcher (int conn_sockfd, int thread_index){
                     state = QUIT;
                 else if (strcmp(command, "logout") == 0) // logout
                     state = INIT;
+                else if (strcmp(command, "res") == 0) // reserve
+                    state = CHECK_AVAILABILITY;
                 else
                     state = INIT;
                 break;
@@ -562,6 +581,36 @@ void dispatcher (int conn_sockfd, int thread_index){
                 state = LOGIN;
                 break;
 
+            
+            case CHECK_DATE_VALIDITY:
+                readSocket(conn_sockfd, command); // read date or reserve request
+                rv = checkDateValidity();
+                if (rv == 0){
+                    state = CHECK_AVAILABILITY;
+                }
+                else {
+                    state = LOGIN;
+                    writeSocket(conn_sockfd, "BADDATE");
+                }
+                break;
+
+            // check data validity and availability
+            case CHECK_AVAILABILITY:
+                rv = checkAvailability();
+                if (rv == 0){
+                    state = RESERVE_CONFIRMATION;
+                }
+                else {
+                    writeSocket(conn_sockfd, "NOAVAL");
+                    state = LOGIN;
+                }
+                break;
+
+            case RESERVE_CONFIRMATION:
+                saveReservation();
+                writeSocket(conn_sockfd, "RESOK");
+                state = LOGIN;
+                break;
 
             
             case QUIT:
@@ -592,7 +641,49 @@ ABORT:
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
+#include <sqlite3.h>
 
+// this define allowes me to avoid writing every SQL command within quotes.
+#define QUOTE(...) #__VA_ARGS__     // https://stackoverflow.com/a/17996915/6164816
+
+int setupDatabase(){
+    sqlite3* db;
+    char* err_msg = 0;
+    
+    int rc = sqlite3_open(DATABASE, &db);
+    
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 1;
+    }
+
+    char *sql_command = QUOTE(
+            CREATE TABLE IF NOT EXISTS Bookings(
+                `id`        INTEGER     PRIMARY KEY,
+                `user`      TEXT        DEFAULT NULL,
+                `date`      TEXT        DEFAULT NULL,
+                `room`      INTEGER     DEFAULT NULL,
+                `code`      TEXT        DEFAULT NULL,
+
+                UNIQUE(user, date, room)
+            );
+    );
+          
+    rc = sqlite3_exec(db, sql_command, 0, 0, &err_msg);
+    
+    if (rc != SQLITE_OK ) {
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+        
+        sqlite3_free(err_msg);        
+        sqlite3_close(db);
+        
+        return 1;
+    } 
+    
+    sqlite3_close(db);
+    return 0;
+}
 
 
 int usernameIsRegistered(char* u){
@@ -740,6 +831,18 @@ int checkIfPasswordMatches(char* username, char* actual_password) {
 }
 
 
+int checkDateValidity(){
+    return 0;
+}
+
+int checkAvailability(){
+    return 0;
+}
+
+
+int saveReservation(){
+    return 0;
+}
 
 
 

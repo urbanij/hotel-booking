@@ -19,7 +19,12 @@ typedef struct booking {
 } Booking;
 
 
-
+void printBooking(Booking* b){
+    printf("Booking on date %s, in room %d, with code %s\n", 
+            b->date, b->room, b->code
+        );
+    return;
+}
 
 
 

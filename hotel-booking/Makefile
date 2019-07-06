@@ -29,7 +29,7 @@ endif
 LINKING_LIB :=
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-	LINKING_LIB:=-lpthread -lcrypto
+	LINKING_LIB:=-lpthread -lcrypt
 endif
 ifeq ($(UNAME_S),Darwin)
 	LINKING_LIB:=
@@ -40,7 +40,7 @@ endif
 server.o: server.c $(HEADERS)
 	gcc -c -Wall server.c -o server.o
 server: server.o
-	gcc server.o -o server$(EXTENSION) $(LINKING_LIB)
+	gcc server.o -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3
 
 client.o: client.c $(HEADERS)
 	gcc -c -Wall client.c -o client.o

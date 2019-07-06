@@ -10,16 +10,16 @@
  */
 
 
-/*      available commmands  |  shortcuts
- *      ---------------------+---------------
- *      help                 |  h
- *      register             |  r
- *      login                |  l
- *      view                 |  v
- *      quit                 |  q
- *
- *      reserve              |  res   [date]
- *      release              |  rel   [date] [room] [code]
+/*      available commmands  
+ *      ---------------------+
+ *      help                
+ *      register            
+ *      login               
+ *      view                
+ *      quit                
+ *      logout
+ *      reserve    [date]
+ *      release    [date] [room] [code]
  */
 
 #include <netdb.h>
@@ -70,7 +70,6 @@
             \x1b[36m register \x1b[0m --> register an account\n\
             \x1b[36m login    \x1b[0m --> log into the system\n\
             \x1b[36m quit     \x1b[0m --> log out and quit.\n"
-
     #define HELP_LOGGED_IN_MESSAGE "Commands:\n\
             \x1b[36m help     \x1b[0m --> show commands\n\
             \x1b[36m reserve  \x1b[0m --> book a room\n\
@@ -148,11 +147,18 @@ int main(int argc, char** argv)
     memset(user, '\0', sizeof(User));
 
 
+    Booking* booking = (Booking*) malloc(sizeof(Booking));
+    memset(booking, '\0', sizeof(Booking));
+
+
     #define LOCK_INFINITE_CYCLE 0
     #if LOCK_INFINITE_CYCLE
         int temporary_cycle_counter = 0;
     #endif
 
+
+    char input_string[40];
+    char room_string[3];
 
 
     char* username = (char*) malloc(20 * sizeof(char));
@@ -548,28 +554,41 @@ int main(int argc, char** argv)
                 // do stuff
                     printf("\033[92m(%s)\x1b[0m> ", user->username);
                     
+                    
                     // read input
-                    fgets(command, 20, stdin);
+                    fgets(input_string, 20, stdin);
 
                     // drop the new line and replace w/ the string termination
-                    command[strlen(command)-1] = '\0';
+                    input_string[strlen(input_string)-1] = '\0';
                     
                     // convert to input to lower case (for easier later comparison)
-                    for (char *p = command; *p; ++p){
+                    for (char *p = input_string; *p; ++p){
                         *p = *p >= 0x41 && *p <= 0x5A ? (*p | 0x60) : *p;
                     }
+                    
+                    
+                    // splitting input in its parts.
+                    sscanf(input_string, "%s %s %s %s", command, booking->date, room_string, booking->code); 
+                    booking->room = atoi(room_string);
 
+                    #if 0
+                        printBooking(booking);
+                    #endif
+                    /////////////////////////////////////////////////
+
+                
                 // update FSM
                     if      (strcmp(command, "help") == 0)  
                         state = SEND_HELP_LOGGED;
                     // else if (strcmp(command, "view") == 0) 
                     //     state = SEND_VIEW;  
-                    // else if (strcmp(command, "reserve") == 0) 
-                    //      state = SEND_RESERVE;
+                    
                     else if (strcmp(command, "quit") == 0)
                         state = SEND_QUIT;
                     else if (strcmp(command, "logout") == 0)
                         state = SEND_LOGOUT;
+                    else if (strcmp(command, "reserve") == 0)
+                        state = SEND_RESERVE;
                     else
                         state = INVALID_LOGGED_IN;
                     break;
@@ -592,6 +611,26 @@ int main(int argc, char** argv)
 
                     break;
 
+                case SEND_RESERVE:
+                    writeSocket(sockfd, "res");
+                    writeSocket(sockfd, booking->date);
+                    state = READ_RESERVE_RESP;
+                    break;
+                
+                case READ_RESERVE_RESP:
+                    readSocket(sockfd, command);
+                    if (strcmp(command, "BADDATE") == 0){
+                        printf("%s\n", "Wrong date format");
+                    }
+                    else if (strcmp(command, "NOAVAL") == 0){
+                        printf("%s\n", "Sorry - Sold out");
+                    }
+                    else if (strcmp(command, "RESOK") == 0){
+                        printf("%s\n", "\033[92mReservation successful.\x1b[0m");
+                    }
+                    state = CL_LOGIN;
+                    break;
+
                 default:
                     state = CL_INIT;
 
@@ -609,6 +648,9 @@ int main(int argc, char** argv)
 
     free(username);
     free(password);
+
+    free(user);         // not sure it s right position
+    free(booking);
 
 
 
