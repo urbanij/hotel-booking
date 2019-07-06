@@ -43,44 +43,6 @@
 
 
 
-
-#if HELP_MESSAGE_TYPE_1
-    #define HELP_UNLOGGED_MESSAGE_1 "Commands:\n\
-            \x1b[36m help     \x1b[0m --> show commands\n\
-            \x1b[36m register \x1b[0m --> register an account\n\
-            \x1b[36m login    \x1b[0m --> log into the system\n\
-            \x1b[36m quit     \x1b[0m --> quit\n\
-            \x1b[36m logout   \x1b[0m --> log out\n               (log-in required)\n\
-            \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
-            \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
-            \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
-    #define HELP_LOGGED_IN_MESSAGE_1 "Commands:\n\
-            \x1b[36m help     \x1b[0m --> show commands\n\
-            \x1b[36m reserve  \x1b[0m --> book a room\n\
-            \x1b[36m release  \x1b[0m --> cancel a booking\n\
-            \x1b[36m view     \x1b[0m --> show current bookings\n\
-            \x1b[36m logout   \x1b[0m --> log out\n\
-            \x1b[36m quit     \x1b[0m --> log out and quit.\n\
-            \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
-            \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
-#else
-
-    #define HELP_UNLOGGED_MESSAGE_2 "Commands:\n\
-            \x1b[36m help     \x1b[0m --> show commands\n\
-            \x1b[36m register \x1b[0m --> register an account\n\
-            \x1b[36m login    \x1b[0m --> log into the system\n\
-            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
-
-    #define HELP_LOGGED_IN_MESSAGE_2 "Commands:\n\
-            \x1b[36m help     \x1b[0m --> show commands\n\
-            \x1b[36m reserve  \x1b[0m --> book a room\n\
-            \x1b[36m release  \x1b[0m --> cancel a booking\n\
-            \x1b[36m view     \x1b[0m --> show current bookings\n\
-            \x1b[36m logout   \x1b[0m --> log out\n\
-            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
-#endif
-
-
 /********************************/
 /*                              */
 /*      custom data types       */
@@ -319,7 +281,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 /**
@@ -383,6 +345,7 @@ void* threadHandler(void* indx)
 
 }
 
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /** 
  * actually serving the requests of the client.
@@ -452,9 +415,7 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             case HELP_UNLOGGED:
             // do stuff
-                // printf(HELP_UNLOGGED_MESSAGE_2);
-                writeSocket(conn_sockfd, HELP_UNLOGGED_MESSAGE_2);
-
+                writeSocket(conn_sockfd, "H");
             // update FSM
                 state = INIT;
                 break;
@@ -580,8 +541,7 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             case HELP_LOGGED_IN:
             // do stuff
-                writeSocket(conn_sockfd, HELP_LOGGED_IN_MESSAGE_2);
-
+                writeSocket(conn_sockfd, "H");
             // update FSM
                 state = LOGIN;
                 break;
@@ -614,6 +574,7 @@ ABORT:
 }
 
 
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 
@@ -627,7 +588,7 @@ int usernameIsAvailable(char* u){
 
     users_file = fopen(USER_FILE, "r");
     if(users_file == NULL) {
-        return 0;   // no file exists, hence no username exists.
+        return 0;       // no file exists, hence no username exists, gr8
     }
 
     // check whether the user is already in the file (= already registered)
@@ -647,21 +608,21 @@ int usernameIsAvailable(char* u){
 
 
 
-int updateUsersRecordFile(char* username, char* hashed_password){
+int updateUsersRecordFile(char* username, char* encrypted_password){
     
     FILE* users_file = fopen(USER_FILE, "a+");
     if(users_file == NULL) {
         perror_die("fopen() @ server.c:569");
     }
 
-    // buffer (will) store the line to be add to the file.
+    // buffer (will) store the line to be appended to the file.
     char buffer[50];
     memset(buffer, '\0', sizeof(buffer));
 
     // creating the "payload"
     strcat(buffer, username);
     strcat(buffer, "\t\t");
-    strcat(buffer, hashed_password);
+    strcat(buffer, encrypted_password);
 
     // add line
     fprintf(users_file, "%s\n", buffer);

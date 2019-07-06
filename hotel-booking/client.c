@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>         // signal
+#include <ctype.h>
 
 // config definition and declarations
 #include "config.h"
@@ -40,6 +41,44 @@
 #include "Address.h"
 #include "Hotel.h"
 #include "User.h"
+
+
+
+#if HELP_MESSAGE_TYPE_1
+    #define HELP_UNLOGGED_MESSAGE "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m register \x1b[0m --> register an account\n\
+            \x1b[36m login    \x1b[0m --> log into the system\n\
+            \x1b[36m quit     \x1b[0m --> quit\n\
+            \x1b[36m logout   \x1b[0m --> log out\n               (log-in required)\n\
+            \x1b[36m reserve  \x1b[0m --> book a room             (log-in required)\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking        (log-in required)\n\
+            \x1b[36m view     \x1b[0m --> show current bookings   (log-in required)\n"
+    #define HELP_LOGGED_IN_MESSAGE "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m reserve  \x1b[0m --> book a room\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking\n\
+            \x1b[36m view     \x1b[0m --> show current bookings\n\
+            \x1b[36m logout   \x1b[0m --> log out\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n\
+            \x1b[36m register \x1b[0m --> register an account     (you have to be logged-out)\n\
+            \x1b[36m login    \x1b[0m --> log into the system     (you have to be logged-out)\n"
+#else
+
+    #define HELP_UNLOGGED_MESSAGE "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m register \x1b[0m --> register an account\n\
+            \x1b[36m login    \x1b[0m --> log into the system\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
+
+    #define HELP_LOGGED_IN_MESSAGE "Commands:\n\
+            \x1b[36m help     \x1b[0m --> show commands\n\
+            \x1b[36m reserve  \x1b[0m --> book a room\n\
+            \x1b[36m release  \x1b[0m --> cancel a booking\n\
+            \x1b[36m view     \x1b[0m --> show current bookings\n\
+            \x1b[36m logout   \x1b[0m --> log out\n\
+            \x1b[36m quit     \x1b[0m --> log out and quit.\n"
+#endif
 
 
 
@@ -79,7 +118,7 @@ int checkIfUserAlreadyLoggedIn();
 int checkPasswordValidity();
 
 
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 int main(int argc, char** argv)
@@ -252,18 +291,20 @@ int main(int argc, char** argv)
                 case CL_INIT:
                 // do stuff
                     printf("> ");
-                    #if 0
-                        scanf("%[^\n]%*c", command);    // https://stackoverflow.com/a/6282236/6164816
-                                                        // while the input is not a newline ('\n') take input.
-                                                        // Then with the %*c it reads the newline character
-                                                        // from the input buffer (which is not read), and the *
-                                                        // indicates that this read in input is discarded
-                    #else
-                        fgets(command, 20, stdin);          // `\n` is included in command thus I
-                        command[strlen(command)-1] = '\0';  // replace it with the string termination char
-                    #endif
                     
-                
+                    // read input
+                    fgets(command, 20, stdin);
+
+                    // drop the new line and replace w/ the string termination
+                    command[strlen(command)-1] = '\0';
+                    
+                    // convert to input to lower case (for easier later comparison)
+                    for (char *p = command; *p; ++p){
+                        *p = *p >= 0x41 && *p <= 0x5A ? (*p | 0x60) : *p;
+                        //          (A)           (Z)
+                    }
+
+
                 // update FSM
                     if      (strcmp(command, "help") == 0)  
                         state = SEND_HELP;
@@ -308,8 +349,9 @@ int main(int argc, char** argv)
                 case READ_HELP_RESP:
                 // do stuff
                     readSocket(sockfd, response);
-                    printf("%s\n", response);
-                
+                    if (strcmp(response, "H") == 0){
+                        printf("%s\n", HELP_UNLOGGED_MESSAGE);    
+                    }
                 // update FSM
                     state = CL_INIT;
                     break;
@@ -325,8 +367,9 @@ int main(int argc, char** argv)
                 case READ_HELP_LOGGED_RESP:
                 // do stuff
                     readSocket(sockfd, response);
-                    printf("%s\n", response);
-                
+                    if (strcmp(response, "H") == 0){
+                        printf("%s\n", HELP_LOGGED_IN_MESSAGE);    
+                    }
                 // update FSM
                     state = CL_LOGIN;
                     break;
@@ -508,12 +551,19 @@ int main(int argc, char** argv)
 
                 case CL_LOGIN:
                 // do stuff
-                    // printf("\033[92m(logged-in)\x1b[0m> ");
                     printf("\033[92m(%s)\x1b[0m> ", user->username);
                     
-                    fgets(command, 20, stdin);          // `\n` is included in command thus I
-                    command[strlen(command)-1] = '\0';  // replace it with the string termination char
-                
+                    // read input
+                    fgets(command, 20, stdin);
+
+                    // drop the new line and replace w/ the string termination
+                    command[strlen(command)-1] = '\0';
+                    
+                    // convert to input to lower case (for easier later comparison)
+                    for (char *p = command; *p; ++p){
+                        *p = *p >= 0x41 && *p <= 0x5A ? (*p | 0x60) : *p;
+                    }
+
                 // update FSM
                     if      (strcmp(command, "help") == 0)  
                         state = SEND_HELP_LOGGED;
@@ -555,15 +605,12 @@ int main(int argc, char** argv)
 
 
             printClientFSMState(&state);
-            // printf("%s", printClientFSMState(state));
-
 
 
 
         #endif
 
     }
-
 
 
 
@@ -576,7 +623,7 @@ ABORT:
 
 
 
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 
