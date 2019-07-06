@@ -141,8 +141,8 @@ int main(int argc, char** argv)
     char command[BUFSIZE];
     char response[BUFSIZE];
 
-    char username[20];
-    char password[30];
+    // char username[20];
+    // char password[30];
 
     User* user = (User*) malloc(sizeof(User));
     memset(user, '\0', sizeof(User));
@@ -154,6 +154,9 @@ int main(int argc, char** argv)
     #endif
 
 
+
+    char* username = (char*) malloc(20 * sizeof(char));
+    char* password = (char*) malloc(20 * sizeof(char));
 
     state = CL_INIT;
 
@@ -286,6 +289,7 @@ int main(int argc, char** argv)
             memset(command, '\0', BUFSIZE);
             memset(response, '\0', BUFSIZE);
 
+
             switch (state)
             {
                 case CL_INIT:
@@ -413,9 +417,7 @@ int main(int argc, char** argv)
                     // to be used later when i'm logged in and display the username
                     strcpy(user->username, username); 
 
-                    // clean username
-                    memset(username, '\0', sizeof(username));
-                
+                    
                 // update FSM
                     state = READ_USERNAME_RESP;
                     break;
@@ -424,7 +426,7 @@ int main(int argc, char** argv)
                 // do stuff
                     readSocket(sockfd, command);
                     if (strcmp(command, "Y") == 0){
-                        printf("%s\n", "username OK.\nChoose password: ");
+                        printf("%s\n", "username OK.");
                     }
                     else {
                         printf("%s\n", "\x1b[31m\033[1musername already taken.\x1b[0m\npick another one: ");
@@ -443,12 +445,9 @@ int main(int argc, char** argv)
 
                 case SEND_PASSWORD:
                 // do stuff
-                    printf("> ");
-                    fgets(password, 20, stdin);          // `\n` is included in password thus I replace it with `\0`
-                    password[strlen(password)-1] = '\0';
+                    password = getpass("Choose password: ");
 
                     writeSocket(sockfd, password);
-                    memset(password, '\0', sizeof(password));
                 
                 // update FSM
                     rv = checkPasswordValidity(); // 0 is OK, -1 invalid
@@ -498,8 +497,6 @@ int main(int argc, char** argv)
 
                     // to be used later when i'm logged in and display the username
                     strcpy(user->username, username); 
-
-                    memset(username, '\0', sizeof(username));
                     
                 // update FSM
                     state = READ_LOGIN_USERNAME_RESP;
@@ -509,7 +506,7 @@ int main(int argc, char** argv)
                 // do stuff
                     readSocket(sockfd, command);
                     if (strcmp(command, "Y") == 0){
-                        printf("%s\n", "OK, insert password: ");
+                        printf("%s\n", "OK.");
                         state = SEND_LOGIN_PASSWORD;
                     }
                     else {
@@ -524,11 +521,9 @@ int main(int argc, char** argv)
 
                 case SEND_LOGIN_PASSWORD:
                 // do stuff
-                    printf(": ");
-                    fgets(password, 20, stdin);          // `\n` is included in password thus I replace it with `\0`
-                    password[strlen(password)-1] = '\0';
+                    password = getpass("Insert password: ");
+
                     writeSocket(sockfd, password);
-                    memset(password, '\0', sizeof(password));
                 // update FSM
                     state = READ_LOGIN_PASSWORD_RESP;
                     break;
@@ -602,7 +597,7 @@ int main(int argc, char** argv)
 
                 
             }
-
+            
 
             printClientFSMState(&state);
 
@@ -611,6 +606,9 @@ int main(int argc, char** argv)
         #endif
 
     }
+
+    free(username);
+    free(password);
 
 
 

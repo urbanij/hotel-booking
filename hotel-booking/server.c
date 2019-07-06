@@ -621,7 +621,7 @@ int updateUsersRecordFile(char* username, char* encrypted_password){
 
     // creating the "payload"
     strcat(buffer, username);
-    strcat(buffer, "\t\t");
+    strcat(buffer, " ");
     strcat(buffer, encrypted_password);
 
     // add line
