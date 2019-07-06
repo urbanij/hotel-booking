@@ -142,6 +142,10 @@ typedef enum {
     SEND_RESERVE,
     READ_RESERVE_RESP,
 
+
+    // VIEW
+    SEND_VIEW,
+
     // INVALID
     INVALID_UNLOGGED,
     INVALID_LOGGED_IN
@@ -436,6 +440,7 @@ void printServerFSMState(server_fsm_state_t* s, int* tid)
         case CHECK_AVAILABILITY:    rv = "CHECK_AVAILABILITY";  break;
         case RESERVE_CONFIRMATION:  rv = "RESERVE_CONFIRMATION";break;
 
+
     }
 
     printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, rv);
@@ -485,6 +490,8 @@ void printClientFSMState(client_fsm_state_t* s)
 
         case SEND_RESERVE:                  rv = "SEND_RESERVE";            break;
         case READ_RESERVE_RESP:             rv = "READ_RESERVE_RESP";       break;
+
+        case SEND_VIEW:                     rv = "SEND_VIEW";               break;
     }
 
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);

@@ -10,6 +10,12 @@
  * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread]`
  *
  * LOC: cat server.c | sed '/^\s*$/d' | wc -l
+ *
+ *
+ * TODO:            - checkDateValidity()
+ *                  - assignRoom()
+ *                  - use regex to check date validity
+ *
  */
 
 #include <netdb.h>
@@ -27,6 +33,7 @@
 #include <pthread.h>
 
 #include <sqlite3.h>
+#include <regex.h>
 
 #include "xp_sem.h"
 
@@ -152,6 +159,11 @@ int     saveReservation         (char* u, char* d, char* r, char* c);
 int     commitToDatabase(const char*);
 
 int     setupDatabase();
+
+
+char*   assignRoom();
+
+char*   assignRandomReservationCode();
 // . . . . . . . . . . . . 
 
 
@@ -401,14 +413,17 @@ void dispatcher (int conn_sockfd, int thread_index){
     memset(user->username, '\0', sizeof(user->username));
     memset(user->actual_password, '\0', sizeof(user->actual_password));
 
+
+    memset(booking.date, '\0', sizeof(booking.date));
+    memset(booking.code, '\0', sizeof(booking.code));
+
     while (1) 
     {
     
 
         // clean the pipes after receiveing each command.
         memset(command,      '\0', BUFSIZE);
-        memset(booking.date, '\0', sizeof(booking.date));
-        memset(booking.code, '\0', sizeof(booking.code));
+        
     
         
 
@@ -449,7 +464,6 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             case REGISTER:
             // do stuff
-                printf("%s\n", "400 received register.");
                 writeSocket(conn_sockfd, "Choose username: "); // works
 
             // update FSM
@@ -540,7 +554,7 @@ void dispatcher (int conn_sockfd, int thread_index){
                 strcpy(user->actual_password, command);
                 printf("password received %s\n", user->actual_password);
 
-                printf("checking if %s %s is in database\n", user->username, user->actual_password);
+                printf("checking if %s %s is in user.txt\n", user->username, user->actual_password);
 
             
                 rv = checkIfPasswordMatches(user->username, user->actual_password);
@@ -576,9 +590,9 @@ void dispatcher (int conn_sockfd, int thread_index){
                 else if (strcmp(command, "logout") == 0) // logout
                     state = INIT;
                 else if (strcmp(command, "res") == 0) // reserve
-                    state = CHECK_AVAILABILITY;
+                    state = CHECK_DATE_VALIDITY;
                 else
-                    state = INIT;
+                    state = LOGIN;
                 break;
             
             // update FSM
@@ -595,6 +609,8 @@ void dispatcher (int conn_sockfd, int thread_index){
             
             case CHECK_DATE_VALIDITY:
                 readSocket(conn_sockfd, command); // read date or reserve request
+
+                strcpy(booking.date, command);
                 rv = checkDateValidity();
                 if (rv == 0){
                     state = CHECK_AVAILABILITY;
@@ -618,7 +634,8 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
 
             case RESERVE_CONFIRMATION:
-                saveReservation("asd", "12/3", "123", "FA4");
+                saveReservation(user->username, booking.date, assignRoom(), assignRandomReservationCode());
+
                 writeSocket(conn_sockfd, "RESOK");
                 state = LOGIN;
                 break;
@@ -855,6 +872,11 @@ int checkAvailability(){
 
 int saveReservation(char* u, char* d, char* r, char* c){
 
+    /* You may want to add a check to see whether the same 
+     * reservation is already stored, even though it's unlikely
+     * in a real scenario...
+     */
+
     char *sql_command = malloc(100 * sizeof(char));
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
     strcat(sql_command, u);
@@ -866,13 +888,37 @@ int saveReservation(char* u, char* d, char* r, char* c){
     strcat(sql_command, c);
     strcat(sql_command, "');");
     
-    printf("%s\n", sql_command);
+    #if DEBUG
+        printf("%s\n", sql_command);
+    #endif
     
     if (commitToDatabase(sql_command) != 0){
         return -1;
     }
     return 0;
 }
+
+
+char* assignRoom(){
+    // read from database last room number for that day and 
+    // assign that number+1 to the room.
+    // if the calculated number exceed the total space of the hotel 
+    // notify the client that the operation failed.
+    return "1";
+}
+
+char* assignRandomReservationCode(){
+    static char code[6];
+    
+    snprintf(
+        code, 
+        sizeof(code), 
+        "%c%c%c%c%c", 
+        ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A'));
+    
+    return code;
+}
+
 
 
 
