@@ -26,6 +26,8 @@
 #endif
 #include <pthread.h>
 
+#include <sqlite3.h>
+
 #include "xp_sem.h"
 
 
@@ -41,6 +43,11 @@
 #include "Hotel.h"
 #include "User.h"
 
+
+
+#define QUOTE(...) #__VA_ARGS__     // this define allowes me to avoid writing every 
+                                    // SQL command within quotes.
+                                    // https://stackoverflow.com/a/17996915/6164816
 
 
 /********************************/
@@ -139,9 +146,12 @@ int     checkDateValidity       ();
  */
 int     checkAvailability       ();
 
-int saveReservation();
+int     saveReservation         (char* u, char* d, char* r, char* c);
 
 
+int     commitToDatabase(const char*);
+
+int     setupDatabase();
 // . . . . . . . . . . . . 
 
 
@@ -206,8 +216,9 @@ int main(int argc, char** argv)
     
 
     // setup database
+
     if (setupDatabase() != 0){
-        perror_die("database error: ");
+        perror_die("Database error.");
     }
     #if DEBUG
         printf("%s\n", "Database setup OK.");
@@ -607,7 +618,7 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
 
             case RESERVE_CONFIRMATION:
-                saveReservation();
+                saveReservation("asd", "12/3", "123", "FA4");
                 writeSocket(conn_sockfd, "RESOK");
                 state = LOGIN;
                 break;
@@ -641,12 +652,7 @@ ABORT:
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-#include <sqlite3.h>
-
-// this define allowes me to avoid writing every SQL command within quotes.
-#define QUOTE(...) #__VA_ARGS__     // https://stackoverflow.com/a/17996915/6164816
-
-int setupDatabase(){
+int commitToDatabase(const char* sql_command){
     sqlite3* db;
     char* err_msg = 0;
     
@@ -657,19 +663,7 @@ int setupDatabase(){
         sqlite3_close(db);
         return 1;
     }
-
-    char *sql_command = QUOTE(
-            CREATE TABLE IF NOT EXISTS Bookings(
-                `id`        INTEGER     PRIMARY KEY,
-                `user`      TEXT        DEFAULT NULL,
-                `date`      TEXT        DEFAULT NULL,
-                `room`      INTEGER     DEFAULT NULL,
-                `code`      TEXT        DEFAULT NULL,
-
-                UNIQUE(user, date, room)
-            );
-    );
-          
+      
     rc = sqlite3_exec(db, sql_command, 0, 0, &err_msg);
     
     if (rc != SQLITE_OK ) {
@@ -682,6 +676,25 @@ int setupDatabase(){
     } 
     
     sqlite3_close(db);
+    return 0;
+}
+
+int setupDatabase(){
+
+    char *sql_command = QUOTE(
+            CREATE TABLE IF NOT EXISTS Bookings(
+                `id`        INTEGER     PRIMARY KEY,
+                `user`      TEXT        DEFAULT NULL,
+                `date`      TEXT        DEFAULT NULL,
+                `room`      TEXT        DEFAULT NULL,
+                `code`      TEXT        DEFAULT NULL,
+
+                UNIQUE(user, date, room)
+            );
+    );
+    if (commitToDatabase(sql_command) != 0){
+        return -1;
+    }
     return 0;
 }
 
@@ -840,7 +853,24 @@ int checkAvailability(){
 }
 
 
-int saveReservation(){
+int saveReservation(char* u, char* d, char* r, char* c){
+
+    char *sql_command = malloc(100 * sizeof(char));
+    strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
+    strcat(sql_command, u);
+    strcat(sql_command, "', '");                           // ^---- databasetable field names
+    strcat(sql_command, d);
+    strcat(sql_command, "', '");
+    strcat(sql_command, r);
+    strcat(sql_command, "', '");
+    strcat(sql_command, c);
+    strcat(sql_command, "');");
+    
+    printf("%s\n", sql_command);
+    
+    if (commitToDatabase(sql_command) != 0){
+        return -1;
+    }
     return 0;
 }
 

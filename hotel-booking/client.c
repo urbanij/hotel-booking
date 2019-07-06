@@ -158,7 +158,6 @@ int main(int argc, char** argv)
 
 
     char input_string[40];
-    char room_string[3];
 
 
     char* username = (char*) malloc(20 * sizeof(char));
@@ -568,8 +567,7 @@ int main(int argc, char** argv)
                     
                     
                     // splitting input in its parts.
-                    sscanf(input_string, "%s %s %s %s", command, booking->date, room_string, booking->code); 
-                    booking->room = atoi(room_string);
+                    sscanf(input_string, "%s %s %s %s", command, booking->date, booking->room, booking->code); 
 
                     #if 0
                         printBooking(booking);
