@@ -30,13 +30,14 @@
 
 
 
-// fancy options:
-#define HELP_MESSAGE_TYPE_1     0 // if 1 uses type 1, else type2
+// fancy options
+#define HELP_MESSAGE_TYPE_1     0       // if 1 uses type 1, else type2
+
+#define ENCRYP_PASSWORD         1       // has to be 1 in production
 
 
 
 
 
 #endif
-
 

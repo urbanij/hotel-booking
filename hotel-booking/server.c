@@ -105,7 +105,7 @@ void    dispatcher              (int sockfd, int thread_index);
  * therein contained.
  * returns 0 if it's not contained, -1 otherwise.
  */
-int     usernameIsAvailable     (char* u);
+int     usernameIsRegistered     (char* u);
 
 
 /**
@@ -123,15 +123,11 @@ char*   encryptPassword         (char* password);
  */
 void    makeSalt                (char* salt);
 
-/**
- *
- */
-int     checkIfUsernameAlreadyRegistered();
 
 /**
  *
  */
-int     checkIfPasswordMatches();
+int     checkIfPasswordMatches  (char*, char*);
 
 
 
@@ -371,8 +367,9 @@ void dispatcher (int conn_sockfd, int thread_index){
     server_fsm_state_t state = *state_pointer;
 
 
-
+    // creating user "object"
     User* user = (User*) malloc(sizeof(User));
+
     memset(user->username, '\0', sizeof(user->username));
     memset(user->actual_password, '\0', sizeof(user->actual_password));
 
@@ -440,7 +437,7 @@ void dispatcher (int conn_sockfd, int thread_index){
 
             // update FSM
 
-                rv = usernameIsAvailable(user->username);
+                rv = usernameIsRegistered(user->username);
                 if (rv == 0){
                     state = PICK_PASSWORD;
                     writeSocket(conn_sockfd, "Y");  // Y stands for: "username OK.\nChoose password: "
@@ -466,7 +463,11 @@ void dispatcher (int conn_sockfd, int thread_index){
             case SAVE_CREDENTIAL:
             // do stuff
                 // password has to be hashed before storing it.
-                updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
+                #if ENCRYP_PASSWORD 
+                    updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
+                #else
+                    updateUsersRecordFile(user->username, user->actual_password);
+                #endif
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
 
@@ -484,9 +485,16 @@ void dispatcher (int conn_sockfd, int thread_index){
             case CHECK_USERNAME:
             // do stuff
                 readSocket(conn_sockfd, command);
-                rv = checkIfUsernameAlreadyRegistered(command);
-                if (rv == 0){
+                rv = usernameIsRegistered(command);
+                if (rv == 1){
                     state = CHECK_PASSWORD;
+
+                    // storing command (i.e. the username just received)
+                    // into the user structure so I can use this in
+                    // the next stage to check wheter the password for THIS user 
+                    // matches the password previously stored.
+                    strcpy(user->username, command);
+
                     writeSocket(conn_sockfd, "Y");  // Y stands for OK
                 }
                 else {
@@ -500,7 +508,15 @@ void dispatcher (int conn_sockfd, int thread_index){
             case CHECK_PASSWORD:
             // do stuff
                 readSocket(conn_sockfd, command);
-                rv = checkIfPasswordMatches(command);
+
+                strcpy(user->actual_password, command);
+                printf("password received %s\n", user->actual_password);
+
+                printf("checking if %s %s is in database\n", user->username, user->actual_password);
+
+            
+                rv = checkIfPasswordMatches(user->username, user->actual_password);
+        
                 if (rv == 0){
                     state = GRANT_ACCESS;
                 }
@@ -579,7 +595,7 @@ ABORT:
 
 
 
-int usernameIsAvailable(char* u){
+int usernameIsRegistered(char* u){
     char username[30];
     char enc_pass[30];
     char line[50];
@@ -599,7 +615,7 @@ int usernameIsAvailable(char* u){
         // matches `username` (i.e. username saved on the file in the server)
         if (strcmp(u, username) == 0){
             fclose(users_file);
-            return -1;  // found user in the file
+            return 1;   // found user in the file
         }
     }
     return 0;           // username `u` is new to the system, hence the registration can proceed.
@@ -612,7 +628,7 @@ int updateUsersRecordFile(char* username, char* encrypted_password){
     
     FILE* users_file = fopen(USER_FILE, "a+");
     if(users_file == NULL) {
-        perror_die("fopen() @ server.c:569");
+        perror_die("fopen()");
     }
 
     // buffer (will) store the line to be appended to the file.
@@ -673,15 +689,54 @@ void makeSalt(char* salt) {
 
     
 
+int checkIfPasswordMatches(char* username, char* actual_password) {
+    char stored_username[30];
+    char stored_enc_pass[30];
+    char line[50];
 
+    #if ENCRYP_PASSWORD 
+        char salt[2];
+    #else
+    #endif
+    
 
+    char res[512]; // result of decryption operation
 
+    FILE* users_file;
 
-int checkIfUsernameAlreadyRegistered(){
-    return 0;
-}
-int checkIfPasswordMatches(){
-    return 0;
+    users_file = fopen(USER_FILE, "r");
+    if(users_file == NULL) {
+        perror("fopen(USER_FILE)");
+        return -1;       // no file exists
+    }
+
+    
+
+    // Leggo tutte le righe del file
+    while(fgets(line, sizeof(line), users_file)){
+
+        // Estraggo username e password dalla riga appena letta
+        sscanf(line, "%s %s", stored_username, stored_enc_pass);
+
+        #if ENCRYP_PASSWORD 
+            // Estraggo il salt
+            salt[0] = stored_enc_pass[0];
+            salt[1] = stored_enc_pass[1];
+
+            // Cifro la password inserita dall'utente, uso il salt appena estratto
+            strncpy(res, crypt(actual_password, salt), sizeof(res));
+        #else
+            strcpy(res, actual_password);
+        
+        #endif
+        // username e password cifrata coincidono con quelli del file, l'utente
+        // ha eseguito login con successo
+        if (strcmp(username, stored_username) == 0 && 
+            strcmp(res, stored_enc_pass) == 0)
+            return 0;
+    }
+    return 1;
+
 }
 
 

@@ -510,7 +510,7 @@ int main(int argc, char** argv)
                         state = SEND_LOGIN_PASSWORD;
                     }
                     else {
-                        printf("%s\n", "\x1b[31m\033[1musername unknown.\x1b[0m\nGo ahead and register first.");
+                        printf("%s\n", "\x1b[31m\033[1munregistered username.\x1b[0m\nGo ahead and register first.");
                         //                ^--red  ^--bold
                         state = CL_INIT;
                     }
