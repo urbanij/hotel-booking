@@ -22,13 +22,12 @@ then:
 ./client 127.0.0.1 8888
 ```
 where:<br>
-`127.0.0.1` is the ip address (in this case _localhost_),<br> 
-`8888` is the port number and 
-`15` the number of room the hotel has.<br>
-Both the ip address and port number can be changed. The number of room as well of course: being an argument was simply a project directive.
-
+`127.0.0.1` is the IP address (in this case _localhost_),<br> 
+`8888` is the port number and <br>
+`15` the total number of room in the hotel.<br>
 
 <br>
+
 [Francesco Urbani](https://urbanij.github.io/)
 
 ---

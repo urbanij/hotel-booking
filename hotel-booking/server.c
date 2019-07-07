@@ -6,8 +6,12 @@
  * @date:           Mon Jul  1 12:31:31 CEST 2019
  * @Description:    server side
  *
+ *
+ * @installation:   On Linux Ubuntu sqlite3 is not shipped by default, install it by typing:
+ *                  sudo apt-get install libsqlite3-dev
+ *
  * 
- * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread]`
+ * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread] -lsqlite3`
  *
  * LOC: cat server.c | sed '/^\s*$/d' | wc -l
  *
@@ -18,24 +22,36 @@
  *
  */
 
-#include <netdb.h>
-#include <netinet/in.h>
+// standard
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>
+
+// POSIX threading
+#include <pthread.h>
+#include "xp_sem.h"
+
+// networking
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <pthread.h>
-#ifndef __APPLE__
-    #include <crypt.h>
-#endif
-#include <pthread.h>
+#include <netdb.h>
+#include <netinet/in.h>
 
+// security
+#ifdef __linux__
+    #include <crypt.h>
+#else
+    // crypt() is part of `unistd.h` on __APPLE__
+#endif
+
+// miscellaneous
 #include <sqlite3.h>
 #include <regex.h>
 
-#include "xp_sem.h"
+
+
+
 
 
 // config definition and declarations
@@ -87,6 +103,9 @@ static int          tid[NUM_THREADS];           // array of pre-allocated thread
 static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
 
 // static server_fsm_state_t  state[NUM_THREADS];         // FSM states
+
+
+static char         query_result[2048];
 
 
 
@@ -156,7 +175,11 @@ int     checkAvailability       ();
 int     saveReservation         (char* u, char* d, char* r, char* c);
 
 
-int     commitToDatabase(const char*);
+int     commitToDatabase        (const char*);
+
+query_t queryDatabase           (const char*);
+int     callback                (void* NotUsed, int argc, char** argv, char** azColName);
+
 
 int     setupDatabase();
 
@@ -164,6 +187,9 @@ int     setupDatabase();
 char*   assignRoom();
 
 char*   assignRandomReservationCode();
+
+
+char*   fetchUserReservations   (char* u);
 // . . . . . . . . . . . . 
 
 
@@ -583,13 +609,15 @@ void dispatcher (int conn_sockfd, int thread_index){
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
 
-                if      (strcmp(command, "hh") == 0)  // help
+                if      (strcmp(command, "hh") == 0)        // help
                     state = HELP_LOGGED_IN;
-                else if (strcmp(command, "q") == 0)  // quit
+                else if (strcmp(command, "q") == 0)         // quit
                     state = QUIT;
-                else if (strcmp(command, "logout") == 0) // logout
+                else if (strcmp(command, "logout") == 0)    // logout
                     state = INIT;
-                else if (strcmp(command, "res") == 0) // reserve
+                else if (strcmp(command, "v") == 0)         // view
+                    state = VIEW;
+                else if (strcmp(command, "res") == 0)       // reserve
                     state = CHECK_DATE_VALIDITY;
                 else
                     state = LOGIN;
@@ -637,6 +665,11 @@ void dispatcher (int conn_sockfd, int thread_index){
                 saveReservation(user->username, booking.date, assignRoom(), assignRandomReservationCode());
 
                 writeSocket(conn_sockfd, "RESOK");
+                state = LOGIN;
+                break;
+
+            case VIEW:
+                writeSocket(conn_sockfd, fetchUserReservations(user->username));
                 state = LOGIN;
                 break;
 
@@ -695,6 +728,78 @@ int commitToDatabase(const char* sql_command){
     sqlite3_close(db);
     return 0;
 }
+
+
+
+query_t queryDatabase(const char* sql) {
+    
+    query_t query;  // variable to be returned.
+
+    sqlite3 *db;
+    char *err_msg = 0;
+    
+    int rc = sqlite3_open(DATABASE, &db);
+    
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        query = (query_t){.rv = -1, .query_result = ""};
+        return query;
+    }
+    
+    rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
+    
+    if (rc != SQLITE_OK ) {
+        fprintf(stderr, "Failed to select data\n");
+        fprintf(stderr, "SQL error: %s\n", err_msg);
+
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        
+        query = (query_t){.rv = -1, .query_result = ""};
+        return query;
+    } 
+
+    sqlite3_close(db);
+    
+    query_result[strlen(query_result)-3] = '.';
+    query_result[strlen(query_result)-2] = '\0';
+
+    query = (query_t){.rv = 0, .query_result = query_result};
+
+    return query;
+}
+
+int callback(void* NotUsed, int argc, char** argv, char** azColName) {
+    
+    // query_result is the payload "to be returned". 
+    // query_result is a global variable!
+
+    // clean payload right before filling if from scratch.
+    memset(query_result, '\0', sizeof(query_result));
+
+    NotUsed = 0;
+
+    char tmp_str[64] = "";
+    for (int i = 0; i < argc; i++)
+    {
+        snprintf(
+                tmp_str, 
+                sizeof(tmp_str), 
+                "%s = %s, ",
+                azColName[i], argv[i] ? argv[i] : "NULL"
+            );
+        strcat(query_result, tmp_str);
+    }
+    
+    strcat(query_result, "\n");
+    
+    return 0;
+}
+
+
+
+
 
 int setupDatabase(){
 
@@ -877,6 +982,8 @@ int saveReservation(char* u, char* d, char* r, char* c){
      * in a real scenario...
      */
 
+    int rv;
+
     char *sql_command = malloc(100 * sizeof(char));
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
     strcat(sql_command, u);
@@ -892,7 +999,10 @@ int saveReservation(char* u, char* d, char* r, char* c){
         printf("%s\n", sql_command);
     #endif
     
-    if (commitToDatabase(sql_command) != 0){
+    rv = commitToDatabase(sql_command);
+    free(sql_command);
+
+    if (rv != 0){
         return -1;
     }
     return 0;
@@ -908,6 +1018,11 @@ char* assignRoom(){
 }
 
 char* assignRandomReservationCode(){
+
+    // TODO
+    // INITIALIZE SEED!
+
+
     static char code[6];
     
     snprintf(
@@ -917,6 +1032,34 @@ char* assignRandomReservationCode(){
         ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A'));
     
     return code;
+}
+
+
+
+char* fetchUserReservations(char* u){
+
+    char *sql_command = malloc(100 * sizeof(char));
+    strcat(sql_command, "SELECT * FROM Bookings WHERE user = '");
+    strcat(sql_command, u);
+    strcat(sql_command, "'");
+    
+    #if DEBUG
+        printf("DEBUG: sql_command: %s\n", sql_command);
+    #endif
+
+    query_t query;
+
+    query = queryDatabase(sql_command);
+
+    
+    if (query.rv == 0){
+        return query.query_result;
+    }
+    else {
+        printf("%s\n", "Error querying the database!");
+        return "";
+    }
+
 }
 
 

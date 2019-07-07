@@ -21,14 +21,18 @@
  *      release    [date] [room] [code]
  */
 
-#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
+
+// networking
 #include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+// miscellaneous
 #include <signal.h>         // signal
 #include <ctype.h>
 
@@ -156,7 +160,7 @@ int main(int argc, char** argv) {
     #endif
 
 
-    char input_string[40];
+    // char input_string[40];
 
 
     char* username = (char*) malloc(20 * sizeof(char));
@@ -525,7 +529,13 @@ int main(int argc, char** argv) {
 
 
             case SEND_VIEW:
-                printf("%s\n", "WORK IN PROGRESS");
+                writeSocket(sockfd, "v");
+                state = READ_VIEW_RESP;
+                break;
+
+            case READ_VIEW_RESP:
+                readSocket(sockfd, response);
+                printf("%s\n", response);
                 state = CL_LOGIN;
                 break;
 

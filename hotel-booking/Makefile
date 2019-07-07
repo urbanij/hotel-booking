@@ -15,17 +15,29 @@ all: server client
 HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h 
 
 
+# custom bin extension based on platform
 EXTENSION :=
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-	EXTENSION:=_lin
+# 	EXTENSION:=_lin
+	EXTENSION:=
 endif
 ifeq ($(UNAME_S),Darwin)
-	EXTENSION:=_osx
+# 	EXTENSION:=_osx
+	EXTENSION:=
 endif
 
 
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	install:
+		sudo apt-get install libsqlite3-dev
+endif
+
+
+
+# custom libraries to link against based on plaftorm.
 LINKING_LIB :=
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
@@ -37,19 +49,14 @@ endif
 
 
 
-server.o: server.c $(HEADERS)
-	gcc -c -Wall server.c -o server.o
-server: server.o
-	gcc server.o -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3
+server: server.c $(HEADERS)
+	gcc server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3
 
-client.o: client.c $(HEADERS)
-	gcc -c -Wall client.c -o client.o
-client: client.o
-	gcc client.o -o client$(EXTENSION) $(LINKING_LIB)
-
+client: client.c $(HEADERS)
+	gcc client.c -o client$(EXTENSION) $(LINKING_LIB)
 
 
 
 
 clean:
-	rm *.o client_* server_*
+	rm client server

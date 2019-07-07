@@ -1,15 +1,23 @@
+# macOS garbage
 .DS_Store
+
+# binaries
+client_*
+client
+server_*
+server
 *.out
+
+# objects
 *.o
 
+# local storage
 users.txt
-
-client_*
-server_*
-
 *.db
 
+# auxiliary stuff
 aux
 
+# misc
 NOTES
 TODO

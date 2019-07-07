@@ -38,6 +38,16 @@
 /********************************/
 
 
+typedef struct {
+    int     rv;
+    char*   query_result;
+} query_t;
+
+
+
+
+
+
 /**
  * main FSM states          
  */
@@ -71,6 +81,9 @@ typedef enum {
     CHECK_DATE_VALIDITY,
     CHECK_AVAILABILITY,
     RESERVE_CONFIRMATION,
+
+    // VIEW
+    VIEW,
 
 
     QUIT                    // closes connection with client
@@ -145,6 +158,7 @@ typedef enum {
 
     // VIEW
     SEND_VIEW,
+    READ_VIEW_RESP,
 
     // INVALID
     INVALID_UNLOGGED,
@@ -440,6 +454,8 @@ void printServerFSMState(server_fsm_state_t* s, int* tid)
         case CHECK_AVAILABILITY:    rv = "CHECK_AVAILABILITY";  break;
         case RESERVE_CONFIRMATION:  rv = "RESERVE_CONFIRMATION";break;
 
+        case VIEW:                  rv = "VIEW";                break;
+
 
     }
 
@@ -492,6 +508,7 @@ void printClientFSMState(client_fsm_state_t* s)
         case READ_RESERVE_RESP:             rv = "READ_RESERVE_RESP";       break;
 
         case SEND_VIEW:                     rv = "SEND_VIEW";               break;
+        case READ_VIEW_RESP:                rv = "READ_VIEW_RESP";          break;
     }
 
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);
