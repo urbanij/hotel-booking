@@ -50,10 +50,6 @@
 #include <regex.h>
 
 
-
-
-
-
 // config definition and declarations
 #include "config.h"
 
@@ -105,8 +101,7 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 // static server_fsm_state_t  state[NUM_THREADS];         // FSM states
 
 
-static char         query_result[2048];
-
+static char         query_result_g[2048];
 
 
 /*                       __        __
@@ -116,107 +111,157 @@ static char         query_result[2048];
  *  / .___/_/   \____/\__/\____/\__/\__, / .___/\___/____/
  * /_/                             /____/*/   
 
-// void help               ();
-// void register           (int sockfd);
-// void login              (int sockfd);
-// void view               (int sockfd);
 
-/**
- * thread handler function
+/** @brief Thread body for the request handlers. 
+ *         Wait for a signal from the main thread, collect the
+ *         client file descriptor and serve the request.
+ *         Signal the main thread when the request has finished.
+ *   @param opaque 
+ *   @return Void*
  */
 void*   threadHandler           (void* opaque);
 
-/**
- * command dispatcher: runs inside the threadHandler functions 
- * and dispatches the inbound commands to the executive functions.
+/** @brief Command dispatcher: actually serving the requests of the client.
+ *         Runs inside the threadHandler functions and dispatches
+ *         the inbound commands to the executive functions.
+ *
+ *  @param sockfd Socket file descriptor
+ *  @param thread_index Thread index
+ *  @return Void.
  */
 void    dispatcher              (int sockfd, int thread_index);
 
-/**
- * takes a username `u` and opens the file 
- * `users.txt` to see if such username is
- * therein contained.
- * returns 0 if it's not contained, -1 otherwise.
+/** @brief Takes a username `u` and opens the file 
+ *         `users.txt` to see if such username is
+ *         therein contained.
+ *  @param u Username
+ *  @return 0 if username is in file, -1 otherwise
  */
 int     usernameIsRegistered     (char* u);
 
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int     updateUsersRecordFile   (char*, char*);
 
-/**
- *
+/** @brief Takes plain text password and return the encrypted version of it
+ *  @param password The plain text password
+ *  @return encrypted password
  */
 char*   encryptPassword         (char* password);
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 void    makeSalt                (char* salt);
 
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int     checkIfPasswordMatches  (char*, char*);
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int     checkDateValidity       ();
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int     checkAvailability       ();
 
+/** @brief
+ *  @param
+ *  @param
+ *  @return
+ */
 int     saveReservation         (char* u, char* d, char* r, char* c);
 
 
-int     commitToDatabase        (const char*);
+/** @brief Commit command to database
+ *  @param sql_command Sql command to be committed
+ *  @return 0 if successful, !0 if not successful.
+ */
+int     commitToDatabase        (const char* sql_command);
 
-query_t queryDatabase           (const char*);
+/** @brief Query the database
+ *  @param sql_command 
+ *  @return struct query (i.e.: return value (int), and query response (char*) )
+ */
+query_t queryDatabase           (const char* sql_command);
+
+/** @brief Used by queryDatabase()
+ *  @param
+ *  @param
+ *  @return
+ */
 int     callback                (void* NotUsed, int argc, char** argv, char** azColName);
 
-
+/** @brief Initial database setup. Creates the table Booking.
+ *  @return return value (0 OK; !0 not OK)
+ */
 int     setupDatabase();
 
-
+/** @brief Assign room to user upon `reserve` request.
+ *  @param Void
+ *  @return room number (string)
+ */
 char*   assignRoom();
 
+/** @brief Generate random reservation code
+ *  @return CODE
+ */
 char*   assignRandomReservationCode();
 
-
+/** @brief Open database and returns the reservation for the user
+ *         the called the function.
+ *  @param username
+ *  @return 
+ */
 char*   fetchUserReservations   (char* u);
 // . . . . . . . . . . . . 
 
 
 
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkUsername();
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkPassowrd();
 
-/**
- *
- */
-int checkIfLoggedIn();
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkIfFull();
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkIfValidEntry();
 
@@ -228,7 +273,8 @@ int checkIfValidEntry();
 
 
 
-int main(int argc, char** argv)
+int 
+main(int argc, char** argv)
 {
     int conn_sockfd;    // connected socket file descriptor
 
@@ -346,12 +392,9 @@ int main(int argc, char** argv)
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
-/**
- * Thread body for the request handlers. Wait for a signal from the main
- * thread, collect the client file descriptor and serve the request.
- * Signal the main thread when the request has been finished.
- */
-void* threadHandler(void* indx)
+
+void* 
+threadHandler(void* indx)
 {
     int thread_index = *(int*) indx;       // unpacking argument
     int conn_sockfd;                       // file desc. local variable
@@ -409,11 +452,10 @@ void* threadHandler(void* indx)
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-/** 
- * actually serving the requests of the client.
- *
- */
-void dispatcher (int conn_sockfd, int thread_index){
+
+void 
+dispatcher (int conn_sockfd, int thread_index)
+{
 
     char command[BUFSIZE];
     Booking booking;        // variable to handle the functions 
@@ -443,6 +485,8 @@ void dispatcher (int conn_sockfd, int thread_index){
     memset(booking.date, '\0', sizeof(booking.date));
     memset(booking.code, '\0', sizeof(booking.code));
 
+    char reservation_response[156*sizeof(char)];
+
     while (1) 
     {
     
@@ -461,11 +505,9 @@ void dispatcher (int conn_sockfd, int thread_index){
         switch (state)
         {
             case INIT:
-            // do stuff
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
 
-            // update FSM
                 if      (strcmp(command, "h") == 0)  // help
                     state = HELP_UNLOGGED;
                 else if (strcmp(command, "r") == 0)  // register
@@ -480,30 +522,24 @@ void dispatcher (int conn_sockfd, int thread_index){
     
 
             case HELP_UNLOGGED:
-            // do stuff
                 writeSocket(conn_sockfd, "H");
-            // update FSM
                 state = INIT;
                 break;
 
 
 
             case REGISTER:
-            // do stuff
                 writeSocket(conn_sockfd, "Choose username: "); // works
 
-            // update FSM
                 state = PICK_USERNAME;
                 break;
 
             case PICK_USERNAME:
-            // do stuff
                 readSocket(conn_sockfd, command);
                 strcpy(user->username, command);
 
                 printf("usernameee %s\n", user->username); // works
 
-            // update FSM
 
                 rv = usernameIsRegistered(user->username);
                 if (rv == 0){
@@ -518,20 +554,17 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
 
             case PICK_PASSWORD:
-            // do stuff
                 readSocket(conn_sockfd, command);
                 strcpy(user->actual_password, command);
 
                 printf("passworrrd %s\n", user->actual_password);
 
-            // update FSM
                 state = SAVE_CREDENTIAL;
                 break;
 
             case SAVE_CREDENTIAL:
-            // do stuff
                 // password has to be hashed before storing it.
-                #if ENCRYP_PASSWORD 
+                #if ENCRYPT_PASSWORD 
                     updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
                 #else
                     updateUsersRecordFile(user->username, user->actual_password);
@@ -539,19 +572,15 @@ void dispatcher (int conn_sockfd, int thread_index){
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
 
-            // update FSM
                 state = LOGIN;
                 break;
 
             case LOGIN_REQUEST:
-            // do stuff
-                writeSocket(conn_sockfd, "Insert username: ");
-            // update FSM
+                writeSocket(conn_sockfd, "OK"); // not actually necessary 
                 state = CHECK_USERNAME;
                 break;
 
             case CHECK_USERNAME:
-            // do stuff
                 readSocket(conn_sockfd, command);
                 rv = usernameIsRegistered(command);
                 if (rv == 1){
@@ -569,12 +598,10 @@ void dispatcher (int conn_sockfd, int thread_index){
                     state = INIT;
                     writeSocket(conn_sockfd, "N");  // N stands for NOT OK
                 }
-            // update FSM
                 
                 break;
 
             case CHECK_PASSWORD:
-            // do stuff
                 readSocket(conn_sockfd, command);
 
                 strcpy(user->actual_password, command);
@@ -592,19 +619,15 @@ void dispatcher (int conn_sockfd, int thread_index){
                     state = INIT;
                     writeSocket(conn_sockfd, "N");  // N stands for NOT OK
                 }
-            // update FSM
                 
                 break;
 
             case GRANT_ACCESS:
-            // do stuff
                 writeSocket(conn_sockfd, "Y");  // Y stands for OK
-            // update FSM
                 state = LOGIN;
                 break;
 
             case LOGIN:
-            // do stuff
                 
                 readSocket(conn_sockfd, command);  // fix space separated strings
                 printf("THREAD #%d: command received: %s\n", thread_index, command);
@@ -623,14 +646,11 @@ void dispatcher (int conn_sockfd, int thread_index){
                     state = LOGIN;
                 break;
             
-            // update FSM
 
                 break;
 
             case HELP_LOGGED_IN:
-            // do stuff
                 writeSocket(conn_sockfd, "H");
-            // update FSM
                 state = LOGIN;
                 break;
 
@@ -669,13 +689,24 @@ void dispatcher (int conn_sockfd, int thread_index){
                 break;
 
             case VIEW:
-                writeSocket(conn_sockfd, fetchUserReservations(user->username));
+
+                strcpy(reservation_response, fetchUserReservations(user->username));
+
+                if (strcmp(reservation_response, "") == 0){
+                    writeSocket(conn_sockfd, "You have 0 active reservations.");
+                }
+                else {
+                    writeSocket(conn_sockfd, reservation_response);   
+                }
+                
+                memset(reservation_response, '\0', sizeof(reservation_response));
+                memset(query_result_g, '\0', sizeof(query_result_g));
+                
                 state = LOGIN;
                 break;
 
             
             case QUIT:
-            // do stuff
                 free(state_pointer);
                 
                 free(user);
@@ -683,7 +714,6 @@ void dispatcher (int conn_sockfd, int thread_index){
                 
                 printf("%s\n", "quitting");     // continue here....
                 goto ABORT;
-            // update FSM
 
             default:
                 break;
@@ -702,7 +732,9 @@ ABORT:
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-int commitToDatabase(const char* sql_command){
+int 
+commitToDatabase(const char* sql_command)
+{
     sqlite3* db;
     char* err_msg = 0;
     
@@ -731,7 +763,9 @@ int commitToDatabase(const char* sql_command){
 
 
 
-query_t queryDatabase(const char* sql) {
+query_t 
+queryDatabase(const char* sql_command) 
+{
     
     query_t query;  // variable to be returned.
 
@@ -747,7 +781,7 @@ query_t queryDatabase(const char* sql) {
         return query;
     }
     
-    rc = sqlite3_exec(db, sql, callback, 0, &err_msg);
+    rc = sqlite3_exec(db, sql_command, callback, 0, &err_msg);
     
     if (rc != SQLITE_OK ) {
         fprintf(stderr, "Failed to select data\n");
@@ -762,46 +796,69 @@ query_t queryDatabase(const char* sql) {
 
     sqlite3_close(db);
     
-    query_result[strlen(query_result)-3] = '.';
-    query_result[strlen(query_result)-2] = '\0';
-
-    query = (query_t){.rv = 0, .query_result = query_result};
+    query_result_g[strlen(query_result_g)-1] = '\0';
+    query = (query_t){
+        .rv           = 0, 
+        .query_result = query_result_g
+    };
 
     return query;
 }
 
-int callback(void* NotUsed, int argc, char** argv, char** azColName) {
-    
-    // query_result is the payload "to be returned". 
-    // query_result is a global variable!
+
+int 
+callback (void* NotUsed, int argc, char** argv, char** azColName) 
+{
+    /*  Format of returned string:
+     *  18/06/2020, room 21, reserve code: 8GT4A
+     */
+
+
+    // query_result_g is the payload "to be returned". 
+    // query_result_g is a global variable!
 
     // clean payload right before filling if from scratch.
-    memset(query_result, '\0', sizeof(query_result));
+    // memset(query_result_g, '\0', sizeof(query_result_g));
 
-    NotUsed = 0;
+    #if 0
 
-    char tmp_str[64] = "";
-    for (int i = 0; i < argc; i++)
-    {
-        snprintf(
-                tmp_str, 
-                sizeof(tmp_str), 
-                "%s = %s, ",
-                azColName[i], argv[i] ? argv[i] : "NULL"
-            );
-        strcat(query_result, tmp_str);
-    }
-    
-    strcat(query_result, "\n");
-    
+        char tmp_str[40] = "";
+
+        snprintf(tmp_str, sizeof(tmp_str), "%s/2020, room %s, reserve code: %s", argv[2], argv[3], argv[4]);
+        
+        strcat(query_result_g, tmp_str);
+
+    #else
+        
+        char tmp_str[64] = "";
+        for (int i = 2; i < argc; i++)
+        {
+            if (i==2){
+                snprintf(tmp_str, sizeof(tmp_str), "%s/2020, room ", argv[i]);
+            }
+            else if (i == 3){
+                snprintf(tmp_str, sizeof(tmp_str), "%s, reserve code: ", argv[i]);   
+            }
+            else if (i == 4){
+                snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
+            }
+            strcat(query_result_g, tmp_str);
+
+        }
+        
+        strcat(query_result_g, "\n");
+        
+    #endif
+
     return 0;
 }
 
 
 
 
-
-int setupDatabase(){
+int 
+setupDatabase()
+{
 
     char *sql_command = QUOTE(
             CREATE TABLE IF NOT EXISTS Bookings(
@@ -821,7 +878,9 @@ int setupDatabase(){
 }
 
 
-int usernameIsRegistered(char* u){
+int 
+usernameIsRegistered(char* u)
+{
     char username[30];
     char enc_pass[30];
     char line[50];
@@ -850,7 +909,9 @@ int usernameIsRegistered(char* u){
 
 
 
-int updateUsersRecordFile(char* username, char* encrypted_password){
+int 
+updateUsersRecordFile(char* username, char* encrypted_password)
+{
     
     FILE* users_file = fopen(USER_FILE, "a+");
     if(users_file == NULL) {
@@ -875,7 +936,9 @@ int updateUsersRecordFile(char* username, char* encrypted_password){
     return 0;
 }
 
-char* encryptPassword(char* password){
+char* 
+encryptPassword(char* password)
+{
     // encrypted password returned 
     // (static because it has to outlive the time-scope of the function)
     static char res[512];   
@@ -892,7 +955,9 @@ char* encryptPassword(char* password){
 }
 
 
-void makeSalt(char* salt) {
+void 
+makeSalt(char* salt) 
+{
 
     int r;
 
@@ -915,12 +980,14 @@ void makeSalt(char* salt) {
 
     
 
-int checkIfPasswordMatches(char* username, char* actual_password) {
+int 
+checkIfPasswordMatches(char* username, char* actual_password) 
+{
     char stored_username[30];
     char stored_enc_pass[30];
     char line[50];
 
-    #if ENCRYP_PASSWORD 
+    #if ENCRYPT_PASSWORD 
         char salt[2];
     #else
     #endif
@@ -944,7 +1011,7 @@ int checkIfPasswordMatches(char* username, char* actual_password) {
         // Estraggo username e password dalla riga appena letta
         sscanf(line, "%s %s", stored_username, stored_enc_pass);
 
-        #if ENCRYP_PASSWORD 
+        #if ENCRYPT_PASSWORD 
             // Estraggo il salt
             salt[0] = stored_enc_pass[0];
             salt[1] = stored_enc_pass[1];
@@ -966,16 +1033,22 @@ int checkIfPasswordMatches(char* username, char* actual_password) {
 }
 
 
-int checkDateValidity(){
+int 
+checkDateValidity()
+{
     return 0;
 }
 
-int checkAvailability(){
+int 
+checkAvailability()
+{
     return 0;
 }
 
 
-int saveReservation(char* u, char* d, char* r, char* c){
+int 
+saveReservation(char* u, char* d, char* r, char* c)
+{
 
     /* You may want to add a check to see whether the same 
      * reservation is already stored, even though it's unlikely
@@ -984,7 +1057,10 @@ int saveReservation(char* u, char* d, char* r, char* c){
 
     int rv;
 
-    char *sql_command = malloc(100 * sizeof(char));
+    char sql_command[128*sizeof(char)];
+
+    memset(sql_command, '\0', sizeof(sql_command));
+
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
     strcat(sql_command, u);
     strcat(sql_command, "', '");                           // ^---- databasetable field names
@@ -1000,7 +1076,6 @@ int saveReservation(char* u, char* d, char* r, char* c){
     #endif
     
     rv = commitToDatabase(sql_command);
-    free(sql_command);
 
     if (rv != 0){
         return -1;
@@ -1009,7 +1084,9 @@ int saveReservation(char* u, char* d, char* r, char* c){
 }
 
 
-char* assignRoom(){
+char* 
+assignRoom()
+{
     // read from database last room number for that day and 
     // assign that number+1 to the room.
     // if the calculated number exceed the total space of the hotel 
@@ -1017,11 +1094,13 @@ char* assignRoom(){
     return "1";
 }
 
-char* assignRandomReservationCode(){
 
-    // TODO
-    // INITIALIZE SEED!
+char* 
+assignRandomReservationCode()
+{
 
+    // init seed
+    srand(time(NULL));
 
     static char code[6];
     
@@ -1036,18 +1115,23 @@ char* assignRandomReservationCode(){
 
 
 
-char* fetchUserReservations(char* u){
+char* 
+fetchUserReservations(char* u)
+{
+    static query_t query;
+ 
+    char sql_command[1024];
 
-    char *sql_command = malloc(100 * sizeof(char));
+    memset(sql_command, '\0', sizeof(sql_command));
+
     strcat(sql_command, "SELECT * FROM Bookings WHERE user = '");
     strcat(sql_command, u);
-    strcat(sql_command, "'");
+    strcat(sql_command, "' ORDER BY id");
     
     #if DEBUG
         printf("DEBUG: sql_command: %s\n", sql_command);
     #endif
 
-    query_t query;
 
     query = queryDatabase(sql_command);
 
@@ -1065,24 +1149,33 @@ char* fetchUserReservations(char* u){
 
 
 
-int checkUsername(){
+int 
+checkUsername()
+{
     return -1;
 }
-int checkPassowrd(){
+int 
+checkPassowrd()
+{
     return -1;
 }
-int checkIfLoggedIn(){
+
+
+
+
+
+
+int 
+checkIfFull()
+{
+    return 0;
+}
+
+int 
+checkIfValidEntry()
+{
     return 0;
 }
 
 
-
-
-
-int checkIfFull(){
-    return 0;
-}
-int checkIfValidEntry(){
-    return 0;
-}
 

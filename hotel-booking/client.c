@@ -108,14 +108,18 @@ static client_fsm_state_t  state;
 /*                              */
 /********************************/
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkIfUserAlreadyLoggedIn();
 
 
-/**
- *
+/** @brief
+ *  @param
+ *  @param
+ *  @return
  */
 int checkPasswordValidity();
 
@@ -123,7 +127,8 @@ int checkPasswordValidity();
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
-int main(int argc, char** argv) {
+int 
+main(int argc, char** argv) {
 
     // reading arguments from stdin
     Address address = readArguments(argc, argv);
@@ -188,7 +193,6 @@ int main(int argc, char** argv) {
         switch (state)
         {
             case CL_INIT:
-            // do stuff
                 printf("> ");
                 
                 // read input
@@ -204,7 +208,6 @@ int main(int argc, char** argv) {
                 }
 
 
-            // update FSM
                 if      (strcmp(command, "help") == 0){
                     state = SEND_HELP;
                 }
@@ -226,85 +229,68 @@ int main(int argc, char** argv) {
 
 
             case INVALID_UNLOGGED:
-            // do stuff
                 /* command doesn't match anything the server is supposed 
                  * to receive hence i don't send anything into the socket.
                  */
                 printf("\x1b[33mInvalid command.\x1b[0m \n");
             
-            // update FSM
                 state = CL_INIT;
                 break;
             
 
             case SEND_HELP:
-            // do stuff
                 writeSocket(sockfd, "h");   // trims the command to the first char only
                                             // since it uniquely indentifies the command. 
                                             // there's not need to ship the whole string
             
-            // update FSM
                 state = READ_HELP_RESP;
                 break;
 
             case READ_HELP_RESP:
-            // do stuff
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
                     printf("%s\n", HELP_UNLOGGED_MESSAGE);    
                 }
-            // update FSM
                 state = CL_INIT;
                 break;
 
             case SEND_HELP_LOGGED:
-            // do stuff
                 writeSocket(sockfd, "hh");
             
-            // update FSM
                 state = READ_HELP_LOGGED_RESP;
                 break;
 
             case READ_HELP_LOGGED_RESP:
-            // do stuff
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
                     printf("%s\n", HELP_LOGGED_IN_MESSAGE);    
                 }
-            // update FSM
                 state = CL_LOGIN;
                 break;
 
 
 
             case SEND_QUIT:
-            // do stuff
                 writeSocket(sockfd, "q");
                 printf( "You quit the system.\n");
                 goto ABORT;
 
-            // update FSM
                 state = CL_INIT;   // you sure ?
 
             case SEND_REGISTER:
-            // do stuff
                 writeSocket(sockfd, "r");
             
-            // update FSM
                 state = READ_REGISTER_RESP;
                 break;
 
             case READ_REGISTER_RESP:
-            // do stuff
                 readSocket(sockfd, command);    // Choose username
                 printf("%s", command);
             
-            // update FSM
                 state = SEND_USERNAME;
                 break;
 
             case SEND_USERNAME:
-            // do stuff
                 printf("> ");
                 fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
@@ -314,12 +300,10 @@ int main(int argc, char** argv) {
                 // to be used later when i'm logged in and display the username
                 strcpy(user->username, username); 
 
-            // update FSM
                 state = READ_USERNAME_RESP;
                 break;
 
             case READ_USERNAME_RESP:
-            // do stuff
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "username OK.");
@@ -329,7 +313,6 @@ int main(int argc, char** argv) {
                     //                ^--red  ^--bold
                 }
 
-            // update FSM
                 if (strcmp(command, "Y") == 0){
                     state = SEND_PASSWORD;
                 }
@@ -339,12 +322,10 @@ int main(int argc, char** argv) {
                 break;
 
             case SEND_PASSWORD:
-            // do stuff
                 password = getpass("Choose password: ");
 
                 writeSocket(sockfd, password);
             
-            // update FSM
                 rv = checkPasswordValidity(); // 0 is OK, -1 invalid
                 if (rv == 0){
                     state = READ_PASSWORD_RESP;
@@ -355,7 +336,6 @@ int main(int argc, char** argv) {
                 break;
             
             case READ_PASSWORD_RESP:
-            // do stuff
                 readSocket(sockfd, command);  // OK: Account was successfully setup.
                 printf("%s\n", command);
                 // memset(command, '\0', BUFSIZE);
@@ -364,28 +344,22 @@ int main(int argc, char** argv) {
                 printf("%s\n", command);
                 // memset(command, '\0', BUFSIZE);
 
-            // update FSM
                 state = CL_LOGIN;
                 break;
 
             case SEND_LOGIN:
-            // do stuff
                 writeSocket(sockfd, "l");         
-            // update FSM
                 state = READ_LOGIN_RESP;
                 break;
 
             case READ_LOGIN_RESP:
-            // do stuff
-                readSocket(sockfd, command);
-                printf("%s\n", command);
-            // update FSM
+                readSocket(sockfd, command);    // "OK"
+                // printf("%s\n", command);
                 state = SEND_LOGIN_USERNAME;
                 break;
 
             case SEND_LOGIN_USERNAME:
-            // do stuff
-                printf(": ");
+                printf("Insert username: ");
                 fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
                 writeSocket(sockfd, username);
@@ -393,12 +367,10 @@ int main(int argc, char** argv) {
                 // to be used later when i'm logged in and display the username
                 strcpy(user->username, username); 
                 
-            // update FSM
                 state = READ_LOGIN_USERNAME_RESP;
                 break;
 
             case READ_LOGIN_USERNAME_RESP:
-            // do stuff
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "OK.");
@@ -412,15 +384,12 @@ int main(int argc, char** argv) {
                 break;
 
             case SEND_LOGIN_PASSWORD:
-            // do stuff
                 password = getpass("Insert password: ");
                 writeSocket(sockfd, password);
-            // update FSM
                 state = READ_LOGIN_PASSWORD_RESP;
                 break;
 
             case READ_LOGIN_PASSWORD_RESP:
-            // do stuff
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "OK, access granted.");
@@ -434,7 +403,6 @@ int main(int argc, char** argv) {
                 break;
 
             case CL_LOGIN:
-            // do stuff
                 printf("\033[92m(%s)\x1b[0m> ", user->username);
                 
                 // read input
@@ -454,7 +422,6 @@ int main(int argc, char** argv) {
                 /////////////////////////////////////////////////
 
             
-            // update FSM
                 if      (strcmp(command, "help") == 0){
                     state = SEND_HELP_LOGGED;
                 }
@@ -491,9 +458,7 @@ int main(int argc, char** argv) {
 
 
             case SEND_LOGOUT:
-            // do stuff
                 writeSocket(sockfd, "logout");
-            // update FSM
                 state = CL_INIT;
 
                 // to be used later when i'm logged in and display the username
@@ -503,7 +468,6 @@ int main(int argc, char** argv) {
 
             case SEND_RESERVE:
                 writeSocket(sockfd, "res");
-                printf("%s\n", booking->date);
 
                 writeSocket(sockfd, booking->date);
 
@@ -570,13 +534,15 @@ int main(int argc, char** argv) {
 
 
 
-int checkIfUserAlreadyLoggedIn(){
+int 
+checkIfUserAlreadyLoggedIn(){
     /*  */
     return 0;
 }
 
 
-int checkPasswordValidity(){
+int 
+checkPasswordValidity(){
     /*  */
     return 0;
 }

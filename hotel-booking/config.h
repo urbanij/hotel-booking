@@ -13,10 +13,6 @@
 #define CONFIG_H
 
 
-#define DEBUG                   1
-
-
-
 
 #define NUM_THREADS             2           // # threads
 #define NUM_CONNECTION          10          // # queued connections
@@ -33,11 +29,13 @@
 
 
 // fancy options
+#define DEBUG                   1
+
 #define HELP_MESSAGE_TYPE_1     0       // if 1 uses type 1, else type2
 
-#define ENCRYP_PASSWORD         1       // has to be 1 in production
 
 
+#define ENCRYPT_PASSWORD         1       // has to be 1 in production
 
 
 

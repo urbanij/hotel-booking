@@ -38,7 +38,7 @@
 /********************************/
 
 
-typedef struct {
+typedef struct query {
     int     rv;
     char*   query_result;
 } query_t;
@@ -189,39 +189,75 @@ typedef enum {
 /********************************/
 
 
-/**
- * @param   msg     perror message error
+/** @brief 
+ *  @param msg perror message error
+ *  @return 
  */
 void        perror_die(const char* msg);
 
-/**
- * @param   argc    number of stdin arguments
- * @param   argv    array of strings passed from stdin
- * @return          address type variable
+/** @brief 
+ *  @param   argc    number of stdin arguments
+ *  @param   argv    array of strings passed from stdin
+ *  @return          address type variable
  */
 Address     readArguments(int argc, char** argv);
 
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        writeSocket(int sockfd, char* msg);
 
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        readSocket(int sockfd, char* msg);
 
+/** @brief 
+ *  @param
+ *  @return 
+ */
 int         setupServer(Address* address);
 
+/** @brief 
+ *  @param
+ *  @return 
+ */
 int         setupClient(Address* address);
 
 
 
-
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        printServerFSMState(server_fsm_state_t* s, int* tid);
+
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        printClientFSMState(client_fsm_state_t* s);
 
 
 
+
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        logging(const char* file, const int line, const char* fmt, ...);
 
+
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        print(const char* file, const int line, const char* fmt, ...);
 
 /********************************/
+
 
 
 void
@@ -230,6 +266,7 @@ perror_die(const char* msg)
     perror(msg);
     exit(-1);
 }
+
 
 Address
 readArguments(int argc, char** argv)
@@ -321,7 +358,8 @@ readSocket(int sockfd, char* msg)
 
 
 
-int setupServer(Address* address)
+int 
+setupServer(Address* address)
 {
     /* 
      * socket() -> bind() -> listen() [-> accept()]
@@ -372,7 +410,8 @@ int setupServer(Address* address)
 }
 
 
-int setupClient(Address* address)
+int 
+setupClient(Address* address)
 {
     /* 
      * socket() -> connect()
@@ -422,7 +461,8 @@ int setupClient(Address* address)
 
 
 
-void printServerFSMState(server_fsm_state_t* s, int* tid)
+void 
+printServerFSMState(server_fsm_state_t* s, int* tid)
 {
     char* rv;
 
@@ -466,7 +506,8 @@ void printServerFSMState(server_fsm_state_t* s, int* tid)
 
 
 
-void printClientFSMState(client_fsm_state_t* s)
+void 
+printClientFSMState(client_fsm_state_t* s)
 {
     char* rv;
 
@@ -526,7 +567,8 @@ void printClientFSMState(client_fsm_state_t* s)
 
 
 
-void logging(const char* file, const int line, const char *fmt, ...)
+void 
+logging(const char* file, const int line, const char *fmt, ...)
 {
     /* doesn really work as exptected: cant pass args... */
     va_list list;
@@ -542,7 +584,8 @@ void logging(const char* file, const int line, const char *fmt, ...)
     
 }
 
-inline void print(const char* file, const int line, const char *fmt, ...)
+inline void 
+print(const char* file, const int line, const char *fmt, ...)
 {
     #if DEBUG
         logging(file, line, fmt);
