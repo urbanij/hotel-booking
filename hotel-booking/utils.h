@@ -152,6 +152,7 @@ typedef enum {
 
 
     // RESERVE
+    INVALID_DATE,
     SEND_RESERVE,
     READ_RESERVE_RESP,
 
@@ -545,6 +546,7 @@ printClientFSMState(client_fsm_state_t* s)
         case SEND_LOGIN_PASSWORD:           rv = "SEND_LOGIN_PASSWORD";     break;       
         case READ_LOGIN_PASSWORD_RESP:      rv = "READ_LOGIN_PASSWORD_RESP";break;
 
+        case INVALID_DATE:                  rv = "INVALID_DATE";            break;
         case SEND_RESERVE:                  rv = "SEND_RESERVE";            break;
         case READ_RESERVE_RESP:             rv = "READ_RESERVE_RESP";       break;
 

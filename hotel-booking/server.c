@@ -22,6 +22,7 @@
  *
  */
 
+
 // standard
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,6 +104,8 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 
 static char         query_result_g[2048];
 
+const static int hotel_total_rooms_g = 3;
+
 
 /*                       __        __
  *     ____  _________  / /_____  / /___  ______  ___  _____
@@ -180,13 +183,6 @@ int     checkDateValidity       ();
  *  @param
  *  @return
  */
-int     checkAvailability       ();
-
-/** @brief
- *  @param
- *  @param
- *  @return
- */
 int     saveReservation         (char* u, char* d, char* r, char* c);
 
 
@@ -215,10 +211,10 @@ int     callback                (void* NotUsed, int argc, char** argv, char** az
 int     setupDatabase();
 
 /** @brief Assign room to user upon `reserve` request.
- *  @param Void
+ *  @param date
  *  @return room number (string)
  */
-char*   assignRoom();
+char*   assignRoom              (char* date);
 
 /** @brief Generate random reservation code
  *  @return CODE
@@ -643,9 +639,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 else if (strcmp(command, "res") == 0)       // reserve
                     state = CHECK_DATE_VALIDITY;
                 else
-                    state = LOGIN;
-                break;
-            
+                    state = LOGIN;        
 
                 break;
 
@@ -671,8 +665,10 @@ dispatcher (int conn_sockfd, int thread_index)
 
             // check data validity and availability
             case CHECK_AVAILABILITY:
-                rv = checkAvailability();
-                if (rv == 0){
+                
+                printf("%s\n", assignRoom(booking.date));
+
+                if (strcmp(assignRoom(booking.date), "ERR") != 0){
                     state = RESERVE_CONFIRMATION;
                 }
                 else {
@@ -682,7 +678,9 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case RESERVE_CONFIRMATION:
-                saveReservation(user->username, booking.date, assignRoom(), assignRandomReservationCode());
+                strcpy(booking.room, assignRoom(booking.date));
+
+                saveReservation(user->username, booking.date, booking.room, assignRandomReservationCode());
 
                 writeSocket(conn_sockfd, "RESOK");
                 state = LOGIN;
@@ -713,13 +711,15 @@ dispatcher (int conn_sockfd, int thread_index)
     
                 
                 printf("%s\n", "quitting");     // continue here....
-                goto ABORT;
+                
+                goto ABORT; // yes i know it's bad practice but the label is 
+                            // just a few lines below and it's only used here (and in on the client counterpart)
 
+            
             default:
                 break;
 
         }
-        
         
         printServerFSMState(&state, &thread_index);
             
@@ -831,15 +831,15 @@ callback (void* NotUsed, int argc, char** argv, char** azColName)
     #else
         
         char tmp_str[64] = "";
-        for (int i = 2; i < argc; i++)
+        for (int i = 0; i < argc; i++)
         {
-            if (i==2){
+            if (i==0){
                 snprintf(tmp_str, sizeof(tmp_str), "%s/2020, room ", argv[i]);
             }
-            else if (i == 3){
+            else if (i == 1){
                 snprintf(tmp_str, sizeof(tmp_str), "%s, reserve code: ", argv[i]);   
             }
-            else if (i == 4){
+            else if (i == 2){
                 snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
             }
             strcat(query_result_g, tmp_str);
@@ -871,10 +871,11 @@ setupDatabase()
                 UNIQUE(user, date, room)
             );
     );
-    if (commitToDatabase(sql_command) != 0){
-        return -1;
-    }
-    return 0;
+
+    int rv;
+    rv = commitToDatabase(sql_command);
+    
+    return rv == 0 ? 0 : -1;
 }
 
 
@@ -1039,12 +1040,6 @@ checkDateValidity()
     return 0;
 }
 
-int 
-checkAvailability()
-{
-    return 0;
-}
-
 
 int 
 saveReservation(char* u, char* d, char* r, char* c)
@@ -1085,13 +1080,53 @@ saveReservation(char* u, char* d, char* r, char* c)
 
 
 char* 
-assignRoom()
+assignRoom(char* date)
 {
-    // read from database last room number for that day and 
-    // assign that number+1 to the room.
-    // if the calculated number exceed the total space of the hotel 
-    // notify the client that the operation failed.
-    return "1";
+    /* read from database last room number for that day and 
+     * assign that number+1 to the room.
+     * if the calculated number exceed the total space of the hotel 
+     * notify the client that the operation failed.
+     */
+    
+    char sql_command[1024];
+    memset(sql_command, '\0', sizeof(sql_command));
+
+    strcat(sql_command, "SELECT COUNT(room) FROM Bookings WHERE date = '");
+    strcat(sql_command, date);
+    strcat(sql_command, "'");
+
+    #if DEBUG
+        printf("DEBUG: assign room: sql_command: %s\n", sql_command);
+    #endif
+
+    static query_t query;
+    query = queryDatabase(sql_command);
+    
+    if (query.rv == 0){
+        
+        int room_number;
+
+        room_number = atoi(query.query_result);
+        room_number++;
+
+        printf("rn %d\n", room_number);
+
+        if (room_number > hotel_total_rooms_g){
+            return "ERR";
+        }
+        else {
+            
+            static char room_number_str[4];
+            sprintf(room_number_str, "%d", room_number);
+            return room_number_str;
+
+        }
+    }
+    else {
+        printf("%s\n", "Error querying the database!");
+        return "";
+    }
+
 }
 
 
@@ -1124,12 +1159,12 @@ fetchUserReservations(char* u)
 
     memset(sql_command, '\0', sizeof(sql_command));
 
-    strcat(sql_command, "SELECT * FROM Bookings WHERE user = '");
+    strcat(sql_command, "SELECT \"date\", \"room\", \"code\" FROM Bookings WHERE user = '");
     strcat(sql_command, u);
     strcat(sql_command, "' ORDER BY id");
     
     #if DEBUG
-        printf("DEBUG: sql_command: %s\n", sql_command);
+        printf("DEBUG: fetchUserReservations: sql_command: %s\n", sql_command);
     #endif
 
 

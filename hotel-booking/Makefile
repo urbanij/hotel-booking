@@ -28,15 +28,6 @@ ifeq ($(UNAME_S),Darwin)
 endif
 
 
-
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
-	install:
-		sudo apt-get install libsqlite3-dev
-endif
-
-
-
 # custom libraries to link against based on plaftorm.
 LINKING_LIB :=
 UNAME_S := $(shell uname -s)
@@ -58,5 +49,12 @@ client: client.c $(HEADERS)
 
 
 
+install:
+	sudo apt-get install libsqlite3-dev
+
+
 clean:
 	rm client server
+
+wipe:
+	rm bookings.db users.txt client server
