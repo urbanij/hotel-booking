@@ -10,6 +10,10 @@
  * @installation:   On Linux Ubuntu sqlite3 is not shipped by default, install it by typing:
  *                  sudo apt-get install libsqlite3-dev
  *
+ *    - optional:   install [DB Browser for SQLite](https://sqlitebrowser.org/)
+ *                  (Debian:) sudo apt-get update && sudo apt-get install sqlitebrowser
+ *                  (macOS:)  brew cask install db-browser-for-sqlite
+ *
  * 
  * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread] -lsqlite3`
  *
@@ -17,11 +21,11 @@
  *
  *
  * TODO:            - checkDateValidity()
- *                  - assignRoom()
  *                  - use regex to check date validity
  *
  */
 
+/* POSIX libraries */
 
 // standard
 #include <stdio.h>
@@ -50,6 +54,8 @@
 #include <sqlite3.h>
 #include <regex.h>
 
+
+/* user-defined headers */
 
 // config definition and declarations
 #include "config.h"
@@ -103,8 +109,12 @@ static pthread_t    threads[NUM_THREADS];       // array of pre-allocated thread
 
 
 static char         query_result_g[2048];
+static char         rooms_busy_g[4];
 
-const static int hotel_total_rooms_g = 3;
+
+
+
+const static int    hotel_total_rooms_g = 2;
 
 
 /*                       __        __
@@ -193,17 +203,27 @@ int     saveReservation         (char* u, char* d, char* r, char* c);
 int     commitToDatabase        (const char* sql_command);
 
 /** @brief Query the database
+ *  @param query_id
  *  @param sql_command 
  *  @return struct query (i.e.: return value (int), and query response (char*) )
  */
-query_t queryDatabase           (const char* sql_command);
+query_t queryDatabase           (const int query_id, const char* sql_command);
 
 /** @brief Used by queryDatabase()
  *  @param
  *  @param
  *  @return
  */
-int     callback                (void* NotUsed, int argc, char** argv, char** azColName);
+int     viewCallback            (void* NotUsed, int argc, char** argv, char** azColName);
+
+
+/** @brief Used by queryDatabase()
+ *  @param
+ *  @param
+ *  @return
+ */
+int     busy_roomsCallback      (void* NotUsed, int argc, char** argv, char** azColName);
+
 
 /** @brief Initial database setup. Creates the table Booking.
  *  @return return value (0 OK; !0 not OK)
@@ -219,7 +239,7 @@ char*   assignRoom              (char* date);
 /** @brief Generate random reservation code
  *  @return CODE
  */
-char*   assignRandomReservationCode();
+char*   assignRandomCode        ();
 
 /** @brief Open database and returns the reservation for the user
  *         the called the function.
@@ -227,7 +247,9 @@ char*   assignRandomReservationCode();
  *  @return 
  */
 char*   fetchUserReservations   (char* u);
-// . . . . . . . . . . . . 
+
+
+// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
 
 
@@ -665,8 +687,6 @@ dispatcher (int conn_sockfd, int thread_index)
 
             // check data validity and availability
             case CHECK_AVAILABILITY:
-                
-                printf("%s\n", assignRoom(booking.date));
 
                 if (strcmp(assignRoom(booking.date), "ERR") != 0){
                     state = RESERVE_CONFIRMATION;
@@ -679,15 +699,21 @@ dispatcher (int conn_sockfd, int thread_index)
 
             case RESERVE_CONFIRMATION:
                 strcpy(booking.room, assignRoom(booking.date));
+                strcpy(booking.code, assignRandomCode());
 
-                saveReservation(user->username, booking.date, booking.room, assignRandomReservationCode());
+                saveReservation(user->username, booking.date, booking.room, booking.code);
 
                 writeSocket(conn_sockfd, "RESOK");
+                writeSocket(conn_sockfd, booking.room);
+                writeSocket(conn_sockfd, booking.code);
                 state = LOGIN;
                 break;
 
             case VIEW:
 
+                memset(reservation_response, '\0', sizeof(reservation_response));
+                memset(query_result_g, '\0', sizeof(query_result_g));
+            
                 strcpy(reservation_response, fetchUserReservations(user->username));
 
                 if (strcmp(reservation_response, "") == 0){
@@ -696,9 +722,6 @@ dispatcher (int conn_sockfd, int thread_index)
                 else {
                     writeSocket(conn_sockfd, reservation_response);   
                 }
-                
-                memset(reservation_response, '\0', sizeof(reservation_response));
-                memset(query_result_g, '\0', sizeof(query_result_g));
                 
                 state = LOGIN;
                 break;
@@ -764,7 +787,7 @@ commitToDatabase(const char* sql_command)
 
 
 query_t 
-queryDatabase(const char* sql_command) 
+queryDatabase(const int query_id, const char* sql_command) 
 {
     
     query_t query;  // variable to be returned.
@@ -781,8 +804,25 @@ queryDatabase(const char* sql_command)
         return query;
     }
     
-    rc = sqlite3_exec(db, sql_command, callback, 0, &err_msg);
-    
+
+    if (query_id == 0 || query_id == 1){
+
+        switch (query_id){
+            case 0:
+                rc = sqlite3_exec(db, sql_command, viewCallback, 0, &err_msg);
+                break;
+            
+            case 1:
+                rc = sqlite3_exec(db, sql_command, busy_roomsCallback, 0, &err_msg);  
+                break;
+        }
+
+        #if DEBUG
+            printf("Querying: %s\n", sql_command);
+        #endif
+    }
+
+
     if (rc != SQLITE_OK ) {
         fprintf(stderr, "Failed to select data\n");
         fprintf(stderr, "SQL error: %s\n", err_msg);
@@ -795,19 +835,35 @@ queryDatabase(const char* sql_command)
     } 
 
     sqlite3_close(db);
-    
-    query_result_g[strlen(query_result_g)-1] = '\0';
-    query = (query_t){
-        .rv           = 0, 
-        .query_result = query_result_g
-    };
+
+
+    // based on the query return the appropriate variable
+    if (query_id == 0 || query_id == 1){
+        
+        switch (query_id){
+            case 0:
+                query_result_g[strlen(query_result_g)-1] = '\0';
+                query = (query_t){
+                    .rv           = 0, 
+                    .query_result = (char*) query_result_g
+                };
+                break;
+            
+            case 1:
+                query = (query_t){
+                    .rv           = 0,
+                    .query_result = (char*) rooms_busy_g
+                };
+                break;
+        }
+    }
 
     return query;
 }
 
 
 int 
-callback (void* NotUsed, int argc, char** argv, char** azColName) 
+viewCallback (void* NotUsed, int argc, char** argv, char** azColName) 
 {
     /*  Format of returned string:
      *  18/06/2020, room 21, reserve code: 8GT4A
@@ -830,11 +886,14 @@ callback (void* NotUsed, int argc, char** argv, char** azColName)
 
     #else
         
-        char tmp_str[64] = "";
+        char tmp_str[64];
+        memset(tmp_str, '\0', sizeof(tmp_str));
+
+
         for (int i = 0; i < argc; i++)
         {
             if (i==0){
-                snprintf(tmp_str, sizeof(tmp_str), "%s/2020, room ", argv[i]);
+                snprintf(tmp_str, sizeof(tmp_str), "   %s/2020, room ", argv[i]);
             }
             else if (i == 1){
                 snprintf(tmp_str, sizeof(tmp_str), "%s, reserve code: ", argv[i]);   
@@ -854,13 +913,27 @@ callback (void* NotUsed, int argc, char** argv, char** azColName)
 }
 
 
+int 
+busy_roomsCallback (void* NotUsed, int argc, char** argv, char** azColName) 
+{
+    // rooms_busy_g is the payload "to be returned". 
+    // rooms_busy_g is a global variable!
+
+    // clean payload right before filling if from scratch.
+    memset(rooms_busy_g, '\0', sizeof(rooms_busy_g));
+    
+    strcpy(rooms_busy_g, argv[0]);  // the variable to be returned is
+                                    // only a number (str) and only a single argument, hence argv[0]
+    return 0;
+}
+
 
 
 int 
 setupDatabase()
 {
 
-    char *sql_command = QUOTE(
+    char* sql_command = QUOTE(
             CREATE TABLE IF NOT EXISTS Bookings(
                 `id`        INTEGER     PRIMARY KEY,
                 `user`      TEXT        DEFAULT NULL,
@@ -868,14 +941,14 @@ setupDatabase()
                 `room`      TEXT        DEFAULT NULL,
                 `code`      TEXT        DEFAULT NULL,
 
-                UNIQUE(user, date, room)
+                UNIQUE(user, date, code)
             );
     );
 
     int rv;
     rv = commitToDatabase(sql_command);
     
-    return rv == 0 ? 0 : -1;
+    return rv;  // 0 meaning ok, -1 not ok
 }
 
 
@@ -948,7 +1021,7 @@ encryptPassword(char* password)
 
     makeSalt(salt);         // making salt
 
-    // encrypt password
+    // copy encrypted password to res and return it.
     strncpy(res, crypt(password, salt), sizeof(res)); 
     //             ^--- CRYPT(3)    BSD Library Functions Manual
 
@@ -959,8 +1032,7 @@ encryptPassword(char* password)
 void 
 makeSalt(char* salt) 
 {
-
-    int r;
+    int r;  // temp variable
 
     // init random number generator
     srand(time(NULL));
@@ -1001,30 +1073,28 @@ checkIfPasswordMatches(char* username, char* actual_password)
     users_file = fopen(USER_FILE, "r");
     if(users_file == NULL) {
         perror("fopen(USER_FILE)");
-        return -1;       // no file exists
+        return -1;       // file is missing...
     }
 
-    
 
-    // Leggo tutte le righe del file
+    // Scroll through the lines of users_file
     while(fgets(line, sizeof(line), users_file)){
 
-        // Estraggo username e password dalla riga appena letta
+        // get username and password from line
         sscanf(line, "%s %s", stored_username, stored_enc_pass);
 
         #if ENCRYPT_PASSWORD 
-            // Estraggo il salt
+            // retrieve salt
             salt[0] = stored_enc_pass[0];
             salt[1] = stored_enc_pass[1];
 
-            // Cifro la password inserita dall'utente, uso il salt appena estratto
+            // encrypt the password given by the user with THAT salt
             strncpy(res, crypt(actual_password, salt), sizeof(res));
         #else
             strcpy(res, actual_password);
         
         #endif
-        // username e password cifrata coincidono con quelli del file, l'utente
-        // ha eseguito login con successo
+        // if username and password match, login is successful.
         if (strcmp(username, stored_username) == 0 && 
             strcmp(res, stored_enc_pass) == 0)
             return 0;
@@ -1052,7 +1122,7 @@ saveReservation(char* u, char* d, char* r, char* c)
 
     int rv;
 
-    char sql_command[128*sizeof(char)];
+    char sql_command[256 * sizeof(char)];
 
     memset(sql_command, '\0', sizeof(sql_command));
 
@@ -1099,26 +1169,30 @@ assignRoom(char* date)
         printf("DEBUG: assign room: sql_command: %s\n", sql_command);
     #endif
 
-    static query_t query;
-    query = queryDatabase(sql_command);
-    
-    if (query.rv == 0){
-        
-        int room_number;
+    // Querying the database with the command just created
+    query_t query;
+    memset(&query, 0, sizeof query);
 
-        room_number = atoi(query.query_result);
-        room_number++;
+    query = queryDatabase(1, sql_command);
 
-        printf("rn %d\n", room_number);
+    // Checking the results of the query
+    if (query.rv == 0){     // if return value is not 0, something went wrong.
 
-        if (room_number > hotel_total_rooms_g){
+        int rooms_busy;
+
+        // turn into integer the result of the query 
+        // i.e.: rooms busy for the specified date.
+        rooms_busy = atoi(query.query_result);
+        rooms_busy++;
+
+        if (rooms_busy > hotel_total_rooms_g){
             return "ERR";
         }
         else {
             
-            static char room_number_str[4];
-            sprintf(room_number_str, "%d", room_number);
-            return room_number_str;
+            static char rooms_busy_str[4];
+            sprintf(rooms_busy_str, "%d", rooms_busy);
+            return rooms_busy_str;
 
         }
     }
@@ -1131,7 +1205,7 @@ assignRoom(char* date)
 
 
 char* 
-assignRandomReservationCode()
+assignRandomCode()
 {
 
     // init seed
@@ -1156,7 +1230,6 @@ fetchUserReservations(char* u)
     static query_t query;
  
     char sql_command[1024];
-
     memset(sql_command, '\0', sizeof(sql_command));
 
     strcat(sql_command, "SELECT \"date\", \"room\", \"code\" FROM Bookings WHERE user = '");
@@ -1168,7 +1241,7 @@ fetchUserReservations(char* u)
     #endif
 
 
-    query = queryDatabase(sql_command);
+    query = queryDatabase(0, sql_command);
 
     
     if (query.rv == 0){

@@ -40,7 +40,7 @@
 
 typedef struct query {
     int     rv;
-    char*   query_result;
+    void*   query_result;   // void* thus it can be casted to anything
 } query_t;
 
 

@@ -21,10 +21,13 @@
  *      release    [date] [room] [code]
  */
 
+
+/* POSIX libraries */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <unistd.h>         // getpass()
 
 // networking
 #include <sys/socket.h>
@@ -33,8 +36,12 @@
 #include <arpa/inet.h>
 
 // miscellaneous
-#include <signal.h>         // signal
-#include <ctype.h>
+#include <signal.h>         // signal()
+#include <ctype.h>          // for lowercase check
+
+
+
+/* user-defined headers */
 
 // config definition and declarations
 #include "config.h"
@@ -147,8 +154,18 @@ main(int argc, char** argv) {
     char cmd[BUFSIZE];  // local command, used when parsing the reserve and release instructions
     char response[BUFSIZE];
 
-    // char username[20];
-    // char password[30];
+
+    #if 0
+        char username[20];
+        char password[PASSWORD_MAX_LENGTH];
+    #else
+        // getpass() function seems to work only with dynamic strings
+        char* username = (char*) malloc(20 * sizeof(char));
+        char* password = (char*) malloc(PASSWORD_MAX_LENGTH * sizeof(char));
+    #endif
+
+
+
 
     User* user = (User*) malloc(sizeof(User));
     memset(user, '\0', sizeof(User));
@@ -167,8 +184,8 @@ main(int argc, char** argv) {
     // char input_string[40];
 
 
-    char* username = (char*) malloc(20 * sizeof(char));
-    char* password = (char*) malloc(20 * sizeof(char));
+    
+
 
     state = CL_INIT;
 
@@ -284,13 +301,12 @@ main(int argc, char** argv) {
 
             case READ_REGISTER_RESP:
                 readSocket(sockfd, command);    // Choose username
-                printf("%s", command);
-            
+                // printf("%s", command);
                 state = SEND_USERNAME;
                 break;
 
             case SEND_USERNAME:
-                printf("> ");
+                printf("Choose username: ");
                 fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
                 
@@ -308,7 +324,7 @@ main(int argc, char** argv) {
                     printf("%s\n", "username OK.");
                 }
                 else {
-                    printf("%s\n", "\x1b[31m\033[1musername already taken.\x1b[0m\npick another one: ");
+                    printf("%s\n", "\x1b[31m\033[1musername already taken.\x1b[0m");
                     //                ^--red  ^--bold
                 }
 
@@ -321,7 +337,18 @@ main(int argc, char** argv) {
                 break;
 
             case SEND_PASSWORD:
+
+                // memset(password, '\0', sizeof(password));
                 password = getpass("Choose password: ");
+
+                // check password length. If it exceedes the space this causes 
+                // buffer overlow and crashes the server!
+                if (strlen(password) < 4 || strlen(password) > PASSWORD_MAX_LENGTH-1){
+                    printf("Sorry, password length needs to be [4-%d]\n", PASSWORD_MAX_LENGTH);
+                    state = SEND_PASSWORD;
+                    break;
+                }
+
 
                 writeSocket(sockfd, password);
             
@@ -384,6 +411,18 @@ main(int argc, char** argv) {
 
             case SEND_LOGIN_PASSWORD:
                 password = getpass("Insert password: ");
+
+                /* Check password length. If password causes buffer overflow
+                 * the server trims it and accept it. You don't want that. 
+                 * Prevent this from happening on the client side by forcing the user
+                 * to retype the password.
+                 */
+                if (strlen(password) < 4 || strlen(password) > PASSWORD_MAX_LENGTH-1){
+                    printf("\x1b[31m\033[1mwrong password.\x1b[0m Try again.\n");
+                    state = SEND_LOGIN_PASSWORD;
+                    break;
+                }
+
                 writeSocket(sockfd, password);
                 state = READ_LOGIN_PASSWORD_RESP;
                 break;
@@ -395,7 +434,7 @@ main(int argc, char** argv) {
                     state = CL_LOGIN;
                 }
                 else {
-                    printf("%s\n", "\x1b[31m\033[1mwrong password.\x1b[0m Try again from start.");
+                    printf("%s\n", "\x1b[31m\033[1mwrong password.\x1b[0m Try to login again...");
                     //                ^--red  ^--bold
                     state = CL_INIT;
                 }
@@ -435,6 +474,9 @@ main(int argc, char** argv) {
                 }
                 else {
                     // splitting input in its parts.
+
+                    memset(booking->date, '\0', sizeof(booking->date));
+
                     sscanf(command, "%s %s %s %s", cmd, booking->date, booking->room, booking->code); 
 
                     if (strcmp(cmd, "reserve") == 0){
@@ -475,22 +517,30 @@ main(int argc, char** argv) {
 
                 writeSocket(sockfd, booking->date);
 
-                memset(booking->date, '\0', sizeof(booking->date));
-
 
                 state = READ_RESERVE_RESP;
                 break;
             
             case READ_RESERVE_RESP:
                 readSocket(sockfd, command);
+
                 if (strcmp(command, "BADDATE") == 0){
                     printf("%s\n", "Wrong date format");
                 }
                 else if (strcmp(command, "NOAVAL") == 0){
-                    printf("%s\n", "Sorry - Sold out");
+                    printf("\x1b[31mHotel is sold out on %s/2020\x1b[0m\n", booking->date);
                 }
                 else if (strcmp(command, "RESOK") == 0){
-                    printf("%s\n", "\033[92mReservation successful.\x1b[0m");
+                    memset(booking->room, '\0', sizeof(booking->room));
+                    memset(booking->code, '\0', sizeof(booking->code));
+
+                    readSocket(sockfd, booking->room);
+                    readSocket(sockfd, booking->code);
+
+                    printf("\033[92mReservation successful:\x1b[0m room %s, code %s.\n", 
+                        booking->room, booking->code
+                    );
+                
                 }
                 state = CL_LOGIN;
                 break;
@@ -503,7 +553,7 @@ main(int argc, char** argv) {
 
             case READ_VIEW_RESP:
                 readSocket(sockfd, response);
-                printf("%s\n", "Your reservations:");
+                printf("%s\n", "Your active reservations:");
                 printf("%s\n", response);
                 state = CL_LOGIN;
                 break;
@@ -518,14 +568,19 @@ main(int argc, char** argv) {
 
     }
 
+
+    ABORT:
+
+    #if 1
     free(username);
     free(password);
+    #endif
+
 
     free(user);         // not sure it s right position
     free(booking);
 
 
-    ABORT:
     close(sockfd);
 
     return 0;

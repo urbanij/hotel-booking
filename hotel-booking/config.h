@@ -28,6 +28,12 @@
 
 
 
+
+
+#define PASSWORD_MAX_LENGTH     10
+
+
+
 // fancy options
 #define DEBUG                   1
 

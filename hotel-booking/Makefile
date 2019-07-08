@@ -19,12 +19,12 @@ HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h
 EXTENSION :=
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-# 	EXTENSION:=_lin
-	EXTENSION:=
+	EXTENSION:=_lin
+# 	EXTENSION:=
 endif
 ifeq ($(UNAME_S),Darwin)
-# 	EXTENSION:=_osx
-	EXTENSION:=
+	EXTENSION:=_osx
+# 	EXTENSION:=
 endif
 
 
@@ -41,20 +41,18 @@ endif
 
 
 server: server.c $(HEADERS)
-	gcc server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3
+	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3
 
 client: client.c $(HEADERS)
-	gcc client.c -o client$(EXTENSION) $(LINKING_LIB)
+	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB)
 
 
 
-
-install:
-	sudo apt-get install libsqlite3-dev
 
 
 clean:
-	rm client server
+	rm client$(EXTENSION) server$(EXTENSION)
 
 wipe:
-	rm bookings.db users.txt client server
+	rm bookings.db users.txt client$(EXTENSION) server$(EXTENSION)
+
