@@ -16,7 +16,7 @@
 
 #define NUM_THREADS             2           // # threads
 #define NUM_CONNECTION          10          // # queued connections
-#define BUFSIZE                 2048        // buffer size: maximum length of messages
+#define BUFSIZE                 512         // buffer size: maximum length of messages
 #define BACKLOG                 10          // listen() function parameter
 
 #define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user

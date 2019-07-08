@@ -51,8 +51,8 @@ client: client.c $(HEADERS)
 
 
 clean:
-	rm client$(EXTENSION) server$(EXTENSION)
+	rm client_* server_*
 
 wipe:
-	rm bookings.db users.txt client$(EXTENSION) server$(EXTENSION)
+	rm bookings.db users.txt client_* server_*
 

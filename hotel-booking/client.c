@@ -37,7 +37,6 @@
 
 // miscellaneous
 #include <signal.h>         // signal()
-#include <ctype.h>          // for lowercase check
 
 
 
@@ -119,15 +118,9 @@ static client_fsm_state_t  state;
  *  @param
  *  @return
  */
-int checkIfUserAlreadyLoggedIn();
-
-
-/** @brief
- *  @param
- *  @param
- *  @return
- */
 int checkPasswordValidity();
+
+
 
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
@@ -135,6 +128,9 @@ int checkPasswordValidity();
 
 int 
 main(int argc, char** argv) {
+
+    // clear terminal
+    system("clear");
 
     // reading arguments from stdin
     Address address = readArguments(argc, argv);
@@ -201,31 +197,26 @@ main(int argc, char** argv) {
         #endif 
 
 
-
-        memset(command, '\0', BUFSIZE);
-        memset(response, '\0', BUFSIZE);
-
-
         switch (state)
         {
             case CL_INIT:
                 printf("> ");
                 
                 // read input
+                memset(command, '\0', BUFSIZE);
                 fgets(command, 20, stdin);
 
                 // drop the new line and replace w/ the string termination
                 command[strlen(command)-1] = '\0';
                 
                 // convert to input to lower case (for easier later comparison)
-                for (char *p = command; *p; ++p){
-                    *p = *p >= 0x41 && *p <= 0x5A ? (*p | 0x60) : *p;
-                    //          (A)           (Z)
-                }
+                lower(command);
+
 
 
                 if      (strcmp(command, "help") == 0){
                     state = SEND_HELP;
+                    system("clear");
                 }
                 else if (strcmp(command, "login") == 0){ 
                     state = SEND_LOGIN;
@@ -263,6 +254,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_HELP_RESP:
+                memset(response, '\0', BUFSIZE);
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
                     printf("%s\n", HELP_UNLOGGED_MESSAGE);    
@@ -277,6 +269,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_HELP_LOGGED_RESP:
+                memset(response, '\0', BUFSIZE);
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
                     printf("%s\n", HELP_LOGGED_IN_MESSAGE);    
@@ -300,6 +293,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_REGISTER_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);    // Choose username
                 // printf("%s", command);
                 state = SEND_USERNAME;
@@ -309,6 +303,9 @@ main(int argc, char** argv) {
                 printf("Choose username: ");
                 fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
+
+                // convert to input to lower case (for easier later comparison)
+                lower(username);
                 
                 writeSocket(sockfd, username); 
 
@@ -319,6 +316,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_USERNAME_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "username OK.");
@@ -362,10 +360,12 @@ main(int argc, char** argv) {
                 break;
             
             case READ_PASSWORD_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);  // OK: Account was successfully setup.
                 printf("%s\n", command);
                 // memset(command, '\0', BUFSIZE);
 
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);  // Successfully registerd, you are now logged in
                 printf("%s\n", command);
                 // memset(command, '\0', BUFSIZE);
@@ -379,6 +379,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_LOGIN_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);    // "OK"
                 // printf("%s\n", command);
                 state = SEND_LOGIN_USERNAME;
@@ -388,6 +389,8 @@ main(int argc, char** argv) {
                 printf("Insert username: ");
                 fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
+
+                lower(username);
                 writeSocket(sockfd, username);
 
                 // to be used later when i'm logged in and display the username
@@ -397,6 +400,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_LOGIN_USERNAME_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "OK.");
@@ -428,6 +432,7 @@ main(int argc, char** argv) {
                 break;
 
             case READ_LOGIN_PASSWORD_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
                     printf("%s\n", "OK, access granted.");
@@ -444,23 +449,20 @@ main(int argc, char** argv) {
                 printf(ANSI_COLOR_BMAGENTA "(%s)" ANSI_COLOR_RESET "> ", user->username);
                 
                 // read input
-                fgets(command, 20, stdin);
+                memset(command, '\0', BUFSIZE);
+                fgets(command, 30, stdin);
 
                 // drop the new line and replace w/ the string termination
                 command[strlen(command)-1] = '\0';
                 
                 // convert to input to lower case (for easier later comparison)
-                for (char *p = command; *p; ++p){
-                    *p = *p >= 0x41 && *p <= 0x5A ? (*p | 0x60) : *p;
-                }
-                
-                #if 0
-                    printBooking(booking);
-                #endif
+                lower(command);
+
                 /////////////////////////////////////////////////
 
-            
+
                 if      (strcmp(command, "help") == 0){
+                    system("clear");
                     state = SEND_HELP_LOGGED;
                 }
                 else if (strcmp(command, "view") == 0) {
@@ -475,15 +477,38 @@ main(int argc, char** argv) {
                 else {
                     // splitting input in its parts.
 
-                    memset(booking->date, '\0', sizeof(booking->date));
+                    memset(cmd,           '\0', sizeof(cmd)    );
+                    memset(booking->date, '\0', sizeof booking->date);
+                    memset(booking->room, '\0', sizeof booking->room);
+                    memset(booking->code, '\0', sizeof booking->code);
 
-                    sscanf(command, "%s %s %s %s", cmd, booking->date, booking->room, booking->code); 
+                    sscanf(command, "%s %s %s %s", 
+                        cmd, booking->date, booking->room, booking->code
+                    ); 
+
 
                     if (strcmp(cmd, "reserve") == 0){
                         if (strlen(booking->date) >= 3 && strlen(booking->date) <= 5)
                             state = SEND_RESERVE;    
                         else
                             state = INVALID_DATE;
+                    }
+                    else if (strcmp(cmd, "release") == 0){
+
+                        // printf("%s\n", booking->date);
+                        // printf("%s\n", booking->room);
+                        // printf("%s\n", booking->code);
+
+                        if (strlen(booking->date) >= 3 && strlen(booking->date) <= 5 && 
+                            atoi(booking->room) > 0 && atoi(booking->room) < 999 &&
+                            strlen(booking->code) == 5){
+
+                            state = SEND_RELEASE;    
+                        }
+                        else {
+                            state = INVALID_RELEASE;
+                        }
+                    
                     }
                     else {
                         state = INVALID_LOGGED_IN;
@@ -499,6 +524,11 @@ main(int argc, char** argv) {
 
             case INVALID_DATE:
                 printf("\x1b[33mInvalid date.\x1b[0m Make sure it's format is:\n\t      reserve [gg/mm]\n");
+                state = CL_LOGIN;
+                break;
+
+            case INVALID_RELEASE:
+                printf("\x1b[33mInvalid release.\x1b[0m Make sure it's format is:\n\t         release [gg/mm] [room] [code]\n");
                 state = CL_LOGIN;
                 break;
 
@@ -522,6 +552,7 @@ main(int argc, char** argv) {
                 break;
             
             case READ_RESERVE_RESP:
+                memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
 
                 if (strcmp(command, "BADDATE") == 0){
@@ -552,10 +583,29 @@ main(int argc, char** argv) {
                 break;
 
             case READ_VIEW_RESP:
+                memset(response, '\0', BUFSIZE);
                 readSocket(sockfd, response);
-                printf("%s\n", "Your active reservations:");
+                // printf("%s\n", "Your active reservations:");
                 printf("%s\n", response);
                 state = CL_LOGIN;
+                break;
+
+            case SEND_RELEASE:
+                writeSocket(sockfd, "rel");
+                writeSocket(sockfd, booking->date);
+                writeSocket(sockfd, booking->room);
+                writeSocket(sockfd, booking->code);
+
+                state = READ_RELEASE_RESP;
+                break;
+
+            case READ_RELEASE_RESP:
+                memset(response, '\0', BUFSIZE);
+                readSocket(sockfd, response);
+
+                printf("%s\n", response);
+                state = CL_LOGIN;
+
                 break;
 
             default:
@@ -590,15 +640,6 @@ main(int argc, char** argv) {
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-
-
-
-
-int 
-checkIfUserAlreadyLoggedIn(){
-    /*  */
-    return 0;
-}
 
 
 int 

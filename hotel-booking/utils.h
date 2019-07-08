@@ -13,9 +13,10 @@
 #define UTILS_H
 
 
-#include <netinet/in.h> // inet_addr
-#include <arpa/inet.h>  // inet_addr
+#include <netinet/in.h>     // inet_addr
+#include <arpa/inet.h>      // inet_addr
 #include <stdarg.h>
+#include <ctype.h>          // for lowercase check
 
 
 // config definition and declarations
@@ -29,7 +30,6 @@
 /*                              */
 /********************************/
 
-#define BUFLEN 80
 
 /********************************/
 /*                              */
@@ -85,23 +85,12 @@ typedef enum {
     // VIEW
     VIEW,
 
+    // RELEASE
+    RELEASE,
+    REMOVE_ENTRIES_FROM_DB,
 
+    // QUIT
     QUIT                    // closes connection with client
-
-
-    // CHECK_USERNAME,
-    // CHECK_PASSWORD,
-
-    
-    // HELP_LOGGED_IN,
-    // CHECK_IF_FULL,          // checks whether the hotel-rooms are sold-out.
-    // RESERVE,                // if not sold out, book a room.
-
-    // CHECK_IF_VALID_ENTRY,   // checks whether the user has actually reserved a room or not.
-    // RELEASE,                // cancel booking
-
-    // VIEW,                   // show list of rooms booked by the logged-in user
-    // LOGOUT,                 // go back to INIT
     
 } server_fsm_state_t;
 
@@ -161,23 +150,15 @@ typedef enum {
     SEND_VIEW,
     READ_VIEW_RESP,
 
+    // RELEASE
+    INVALID_RELEASE,
+    SEND_RELEASE,
+    READ_RELEASE_RESP,
+    
     // INVALID
     INVALID_UNLOGGED,
     INVALID_LOGGED_IN
 
-
-    
-
-    // SEND_RELEASE,
-    // READ_RELEASE_RESP,
-
-    
-
-    // SEND_VIEW,
-    // READ_VIEW_RESP,
-
-    // SEND_LOGOUT,
-    // READ_LOGOUT_RESP
 } client_fsm_state_t;
 
 
@@ -242,6 +223,9 @@ void        printServerFSMState(server_fsm_state_t* s, int* tid);
 void        printClientFSMState(client_fsm_state_t* s);
 
 
+
+void        lower(char* str);
+void        upper(char* str);
 
 
 /** @brief 
@@ -469,33 +453,36 @@ printServerFSMState(server_fsm_state_t* s, int* tid)
 
     switch (*s)
     {
-        case INIT:                  rv = "INIT";                break;
+        case INIT:                   rv = "INIT";                   break;
 
-        case HELP_UNLOGGED:         rv = "HELP_UNLOGGED";       break;
-        case HELP_LOGGED_IN:        rv = "HELP_LOGGED_IN";      break;
+        case HELP_UNLOGGED:          rv = "HELP_UNLOGGED";          break;
+        case HELP_LOGGED_IN:         rv = "HELP_LOGGED_IN";         break;
 
-        case REGISTER:              rv = "REGISTER";            break;
-        case PICK_USERNAME:         rv = "PICK_USERNAME";       break;
-        case PICK_PASSWORD:         rv = "PICK_PASSWORD";       break;
+        case REGISTER:               rv = "REGISTER";               break;
+        case PICK_USERNAME:          rv = "PICK_USERNAME";          break;
+        case PICK_PASSWORD:          rv = "PICK_PASSWORD";          break;
 
-        case SAVE_CREDENTIAL:       rv = "SAVE_CREDENTIAL";     break;
-        case LOGIN:                 rv = "LOGIN";               break;
+        case SAVE_CREDENTIAL:        rv = "SAVE_CREDENTIAL";        break;
+        case LOGIN:                  rv = "LOGIN";                  break;
 
-        case QUIT:                  rv = "QUIT";                break;
+        case QUIT:                   rv = "QUIT";                   break;
         
-        case LOGIN_REQUEST:         rv = "LOGIN_REQUEST";       break;
+        case LOGIN_REQUEST:          rv = "LOGIN_REQUEST";          break;
                 
-        case CHECK_USERNAME:        rv = "CHECK_USERNAME";      break;
+        case CHECK_USERNAME:         rv = "CHECK_USERNAME";         break;
                 
-        case CHECK_PASSWORD:        rv = "CHECK_PASSWORD";      break;
+        case CHECK_PASSWORD:         rv = "CHECK_PASSWORD";         break;
                 
-        case GRANT_ACCESS:          rv = "GRANT_ACCESS";        break;
+        case GRANT_ACCESS:           rv = "GRANT_ACCESS";           break;
 
-        case CHECK_DATE_VALIDITY:   rv = "CHECK_DATE_VALIDITY"; break;
-        case CHECK_AVAILABILITY:    rv = "CHECK_AVAILABILITY";  break;
-        case RESERVE_CONFIRMATION:  rv = "RESERVE_CONFIRMATION";break;
+        case CHECK_DATE_VALIDITY:    rv = "CHECK_DATE_VALIDITY";    break;
+        case CHECK_AVAILABILITY:     rv = "CHECK_AVAILABILITY";     break;
+        case RESERVE_CONFIRMATION:   rv = "RESERVE_CONFIRMATION";   break;
 
-        case VIEW:                  rv = "VIEW";                break;
+        case VIEW:                   rv = "VIEW";                   break;
+
+        case RELEASE:                rv = "RELEASE";                break;
+        case REMOVE_ENTRIES_FROM_DB: rv = "REMOVE_ENTRIES_FROM_DB"; break;
 
 
     }
@@ -552,6 +539,10 @@ printClientFSMState(client_fsm_state_t* s)
 
         case SEND_VIEW:                     rv = "SEND_VIEW";               break;
         case READ_VIEW_RESP:                rv = "READ_VIEW_RESP";          break;
+
+        case INVALID_RELEASE:               rv = "INVALID_RELEASE";         break;
+        case SEND_RELEASE:                  rv = "SEND_RELEASE";            break;
+        case READ_RELEASE_RESP:             rv = "READ_RELEASE_RESP";       break;
     }
 
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);
@@ -561,10 +552,19 @@ printClientFSMState(client_fsm_state_t* s)
 
 
 
+void lower(char* str)
+{
+    for (int i = 0; str[i]; i++){
+        str[i] = tolower(str[i]);
+    }
+}
 
-
-
-
+void upper(char* str)
+{
+    for (int i = 0; str[i]; i++){
+        str[i] = toupper(str[i]);
+    }
+}
 
 
 
