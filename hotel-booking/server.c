@@ -204,7 +204,7 @@ int     commitToDatabase        (const char* sql_command);
  *  @param sql_command 
  *  @return struct query (i.e.: return value (int), and query response (char*) )
  */
-query_t queryDatabase           (const int query_id, const char* sql_command);
+query_t* queryDatabase          (const int query_id, const char* sql_command);
 
 /** @brief Used by queryDatabase()
  *  @param
@@ -275,23 +275,38 @@ main(int argc, char** argv)
 
     int conn_sockfd;    // connected socket file descriptor
 
-    // reading arguments (IP and port) from stdin
-    Address address = readArguments(argc, argv);
+    #ifdef GDB_MODE
+        char port[5];
+        printf("Insert port number: ");
+        scanf("%s", port);
 
-    // reading argument (room number) from stdin
-    if (argc < 4){
-        printf("\x1b[31mWrong number of parameters!\x1b[0m\n");
-        printf("Usage: %s <ip> <port> <hotel rooms>\n", argv[0]);
-        exit(-1);
-    }
-    else {
-        hotel_total_rooms_g = atoi(argv[3]);
-        if (hotel_total_rooms_g <= 0){
+        Address address = (Address){
+            .ip   = "127.0.0.1",
+            .port = atoi(port)
+        };
+
+        hotel_total_rooms_g = 3;
+        
+    #else
+        // reading arguments (IP and port) from stdin
+        Address address = readArguments(argc, argv); 
+
+        // reading argument (room number) from stdin
+        if (argc < 4){
+            printf("\x1b[31mWrong number of parameters!\x1b[0m\n");
             printf("Usage: %s <ip> <port> <hotel rooms>\n", argv[0]);
-            printf("\x1b[31mhotel rooms has to be >= 1\x1b[0m\n");
             exit(-1);
         }
-    }
+        else {
+            hotel_total_rooms_g = atoi(argv[3]);
+            if (hotel_total_rooms_g <= 0){
+                printf("Usage: %s <ip> <port> <hotel rooms>\n", argv[0]);
+                printf("\x1b[31mhotel rooms has to be >= 1\x1b[0m\n");
+                exit(-1);
+            }
+        }
+
+    #endif
     
 
 
@@ -485,7 +500,12 @@ dispatcher (int conn_sockfd, int thread_index)
     memset(booking.date, '\0', sizeof(booking.date));
     memset(booking.code, '\0', sizeof(booking.code));
 
-    char reservation_response[156*sizeof(char)];
+
+    // used when processing `view` request and send message back to client.
+    char reservation_response[BUFSIZE];
+    char view_response[BUFSIZE];
+
+    
 
     while (1) 
     {
@@ -494,24 +514,34 @@ dispatcher (int conn_sockfd, int thread_index)
         memset(command, '\0', BUFSIZE);
         
     
+        // stores return value, used throughout the loop.
         int rv;
+
 
         switch (state)
         {
             case INIT:
                 readSocket(conn_sockfd, command);  // fix space separated strings
-                printf("THREAD #%d: command received: %s\n", thread_index, command);
 
-                if      (strcmp(command, "h") == 0)  // help
+                if      (strcmp(command, "h") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "help");
                     state = HELP_UNLOGGED;
-                else if (strcmp(command, "r") == 0)  // register
+                }
+                else if (strcmp(command, "r") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "register");
                     state = REGISTER;
-                else if (strcmp(command, "l") == 0)  // login
+                }
+                else if (strcmp(command, "l") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "login");
                     state = LOGIN_REQUEST;
-                else if (strcmp(command, "q") == 0)  // quit
+                }
+                else if (strcmp(command, "q") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "quit");
                     state = QUIT;
-                else
+                }
+                else {
                     state = INIT;
+                }
                 break;
     
 
@@ -523,7 +553,7 @@ dispatcher (int conn_sockfd, int thread_index)
 
 
             case REGISTER:
-                writeSocket(conn_sockfd, "Choose username: "); // works
+                writeSocket(conn_sockfd, "Choose username: ");
 
                 state = PICK_USERNAME;
                 break;
@@ -532,7 +562,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);
                 strcpy(user->username, command);
 
-                printf("usernameee %s\n", user->username); // works
+                printf("usernameee %s\n", user->username);
 
 
                 rv = usernameIsRegistered(user->username);
@@ -564,7 +594,7 @@ dispatcher (int conn_sockfd, int thread_index)
                     updateUsersRecordFile(user->username, user->actual_password);
                 #endif
                 writeSocket(conn_sockfd, "OK: Account was successfully setup.");
-                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in."); // works
+                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in.");
 
                 state = LOGIN;
                 break;
@@ -624,22 +654,34 @@ dispatcher (int conn_sockfd, int thread_index)
             case LOGIN:
                 
                 readSocket(conn_sockfd, command);  // fix space separated strings
-                printf("THREAD #%d: command received: %s\n", thread_index, command);
 
-                if      (strcmp(command, "hh") == 0)        // help
+                if      (strcmp(command, "hh") == 0){ 
+                    printf("THREAD #%d: command received: %s\n", thread_index, "help");
                     state = HELP_LOGGED_IN;
-                else if (strcmp(command, "q") == 0)         // quit
+                }
+                else if (strcmp(command, "q") == 0){  
+                    printf("THREAD #%d: command received: %s\n", thread_index, "quit");
                     state = QUIT;
-                else if (strcmp(command, "logout") == 0)    // logout
+                }
+                else if (strcmp(command, "logout") == 0) {
+                    printf("THREAD #%d: command received: %s\n", thread_index, "logout");
                     state = INIT;
-                else if (strcmp(command, "v") == 0)         // view
+                }
+                else if (strcmp(command, "v") == 0){  
+                    printf("THREAD #%d: command received: %s\n", thread_index, "view");
                     state = VIEW;
-                else if (strcmp(command, "res") == 0)       // reserve
+                }
+                else if (strcmp(command, "res") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "reserve");
                     state = CHECK_DATE_VALIDITY;
-                else if (strcmp(command, "rel") == 0)       // release
+                }
+                else if (strcmp(command, "rel") == 0){
+                    printf("THREAD #%d: command received: %s\n", thread_index, "release");
                     state = RELEASE;
-                else
+                }
+                else {
                     state = LOGIN;        
+                }
 
                 break;
 
@@ -691,14 +733,18 @@ dispatcher (int conn_sockfd, int thread_index)
 
                 memset(reservation_response, '\0', sizeof(reservation_response));
                 memset(query_result_g, '\0', sizeof(query_result_g));
-            
+                
                 strcpy(reservation_response, fetchUserReservations(user->username));
 
+                
                 if (strcmp(reservation_response, "") == 0){
                     writeSocket(conn_sockfd, "You have 0 active reservations.");
                 }
                 else {
-                    writeSocket(conn_sockfd, strcat("Your active reservations:\n" ,reservation_response));
+                    memset(view_response, '\0', sizeof(view_response));
+                    strcat(view_response, "Your active reservations:\n");
+                    strcat(view_response, reservation_response);
+                    writeSocket(conn_sockfd, view_response);
                 }
                 
                 state = LOGIN;
@@ -792,25 +838,26 @@ commitToDatabase(const char* sql_command)
 
 
 
-query_t 
+query_t* 
 queryDatabase(const int query_id, const char* sql_command) 
 {
     
-    query_t query; // variable to be returned + its initialization
-    memset(&query, '\0', sizeof query);
+    query_t* query = (query_t*) malloc(sizeof(query_t)); // variable to be returned + its initialization
+    //<-- MEMSETTING QUERY HERE CAUSED SEVER SEG FAULT where I assign query->id in the swithc case down below.
+
 
     sqlite3* db;
     char* err_msg = 0;
     
     int rc = sqlite3_open(DATABASE, &db);
+
     
     if (rc != SQLITE_OK) {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        query = (query_t){
-            .rv           = -1, 
-            .query_result = ""
-        };
+        
+        query->rv = -1;
+        query->query_result = (void*)"";
         return query;
     }
     
@@ -844,7 +891,8 @@ queryDatabase(const int query_id, const char* sql_command)
         sqlite3_free(err_msg);
         sqlite3_close(db);
         
-        query = (query_t){.rv = -1, .query_result = ""};
+        query->rv = -1;
+        query->query_result = (void*)"";
         return query;
     } 
 
@@ -856,26 +904,25 @@ queryDatabase(const int query_id, const char* sql_command)
 
     switch (query_id){
         case 0:
+
+            // removing new line from last entry in list of entries (`view` response)
             query_result_g[strlen(query_result_g)-1] = '\0';
-            query = (query_t){
-                .rv           = 0, 
-                .query_result = (char*) query_result_g
-            };
+
+            query->rv = 0;
+            query->query_result = (void*) query_result_g;
             break;
         
         case 1:
-            query = (query_t){
-                .rv           = 0,
-                .query_result = (char*) rooms_busy_g
-            };
+            query->rv = 0;
+            query->query_result = (void*) rooms_busy_g;
             break;
         case 2:
-            query = (query_t){
-                .rv           = 0,
-                .query_result = (void*) &entry_id_g
-            };
+            query->rv = 0;
+            query->query_result = (void*) &entry_id_g;
             break;
     }
+
+
 
     return query;
 }
@@ -937,6 +984,9 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
 int 
 busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName) 
 {
+
+    
+
     // rooms_busy_g is the payload "to be returned". 
     // rooms_busy_g is a global variable!
 
@@ -1160,7 +1210,7 @@ saveReservation(char* u, char* d, char* r, char* c)
 
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
     strcat(sql_command, u);
-    strcat(sql_command, "', '");                           // ^---- databasetable field names
+    strcat(sql_command, "', '");                    //         ^---- database table field names
     strcat(sql_command, d);
     strcat(sql_command, "', '");
     strcat(sql_command, r);
@@ -1198,35 +1248,41 @@ assignRoom(char* date)
     strcat(sql_command, "'");
 
 
+
     // Querying the database with the command just created
-    query_t query;
-    memset(&query, 0, sizeof query);
+    query_t* query = (query_t*) malloc(sizeof(query_t));
+    // memset(&query, 0, sizeof query );
 
     query = queryDatabase(1, sql_command);
 
+
     // Checking the results of the query
-    if (query.rv == 0){     // if return value is not 0, something went wrong.
+    if (query->rv == 0){     // if return value is not 0, something went wrong.
 
         int rooms_busy;
 
         // turn into integer the result of the query 
         // i.e.: rooms busy for the specified date.
-        rooms_busy = atoi(query.query_result);
+        rooms_busy = atoi(query->query_result);
         rooms_busy++;
 
         if (rooms_busy > hotel_total_rooms_g){
+            free(query);
             return "ERR";
         }
         else {
             
             static char rooms_busy_str[4];
             sprintf(rooms_busy_str, "%d", rooms_busy);
+
+            free(query);
             return rooms_busy_str;
 
         }
     }
     else {
         printf("%s\n", "Error querying the database!");
+        free(query);
         return "";
     }
 
@@ -1256,7 +1312,7 @@ assignRandomCode()
 char* 
 fetchUserReservations(char* u)
 {
-    static query_t query;
+    query_t* query = (query_t*) malloc(sizeof(query_t));
  
     char sql_command[1024];
     memset(sql_command, '\0', sizeof(sql_command));
@@ -1265,13 +1321,19 @@ fetchUserReservations(char* u)
     strcat(sql_command, u);
     strcat(sql_command, "' ORDER BY id");
     
+
     query = queryDatabase(0, sql_command);
 
-    if (query.rv == 0){
-        return query.query_result;
+
+
+    if (query->rv == 0){
+        // free(query); // cant free here because it has to be returned...
+        return (char*) query->query_result;
     }
     else {
         printf("%s\n", "Error querying the database!");
+
+        free(query);
         return "";
     }
 
@@ -1299,17 +1361,17 @@ releaseReservation(User* user, Booking* booking)
     strcat(sql_command, booking->code);
     strcat(sql_command, "'");
     
-    static query_t query;
+    query_t* query;
     memset(&query, '\0', sizeof query);
 
 
     query = queryDatabase(2, sql_command);
 
-    printf("id = === %d\n", (* ((int*) &query.query_result)) );
+    printf("id = === %d\n", *(int*) &query->query_result ) ;
     
-    if (query.rv == 0){
+    if (query->rv == 0){
         
-        if ( *((int*) &query.query_result) == 0){  // entry `id` if in database, 0 otherwise.
+        if ( *((int*) &query->query_result) == 0){  // entry `id` if in database, 0 otherwise.
             return -1;
         }
         else {

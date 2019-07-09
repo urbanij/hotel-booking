@@ -132,8 +132,21 @@ main(int argc, char** argv) {
     // clear terminal
     system("clear");
 
-    // reading arguments from stdin
-    Address address = readArguments(argc, argv);
+    #ifdef GDB_MODE
+        char port[5];
+        printf("Insert port number: ");
+        scanf("%s", port);
+
+        Address address = (Address){
+            .ip   = "127.0.0.1",
+            .port = atoi(port)
+        };
+        
+    #else
+        // reading arguments from stdin
+        Address address = readArguments(argc, argv);
+    #endif 
+
     repr_addr(&address);   // print address
     printf("connected.");
 

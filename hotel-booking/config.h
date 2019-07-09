@@ -14,32 +14,43 @@
 
 
 
-#define NUM_THREADS             2           // # threads
-#define NUM_CONNECTION          10          // # queued connections
-#define BUFSIZE                 512         // buffer size: maximum length of messages
+#define BUFSIZE                 2048        // buffer size: maximum length of messages
 #define BACKLOG                 10          // listen() function parameter
-
-#define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user
 
 #define USER_FILE               "users.txt" // text file containig users and encrypted passwords
 
 #define DATABASE                "bookings.db"
 
-
-
-
-
-
 #define PASSWORD_MAX_LENGTH     10
+
+
+#define HELP_MESSAGE_TYPE_1     1       // 1 for type 1, 2 for type 2
+
+
+
+/* customizable */
+
+
+#define NUM_THREADS             2           // # threads
+#define NUM_CONNECTION          10          // # queued connections
+
+#define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user
+
 
 
 
 // fancy options
 #define DEBUG                   1
 
-#define HELP_MESSAGE_TYPE_1     1       // 1 for type 1, 2 for type 2
 
 #define ENCRYPT_PASSWORD        1       // has to be 1 in production
+
+#if 0
+#define GDB_MODE                1       // has to be 0 in production
+                                        // if not specified the compilation flag
+                                        // -DGDB_MODE is required for it to be active.
+#endif
+
 
 
 
