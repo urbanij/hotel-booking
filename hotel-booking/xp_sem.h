@@ -3,15 +3,7 @@
  * Fri May 24 19:34:46 CEST 2019
  *
  *
- * In order for the compiler not to complain
- * when compiling this code within macOS
- * I've included this code to my codebase.
- *
- * This allow to use the macOS version or the
- * standard POSIX version, depending on the machine
- * I'm using, without getting upset.
- *
- * semaphore.h is deprecated on macOS. 
+ * `semaphore.h` is deprecated on macOS, thus this header file.
  * (https://stackoverflow.com/a/27847103)
  */
 

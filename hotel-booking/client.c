@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 
 // miscellaneous
+#include <regex.h>
 #include <signal.h>         // signal()
 
 
@@ -50,6 +51,12 @@
 #include "Address.h"
 #include "Hotel.h"
 #include "User.h"
+
+
+// regex patterns
+#define REGEX_DATE "^(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])-02)|(29-02))$"
+#define REGEX_ROOM "^[1-9]{1,2}$"
+#define REGEX_CODE "^([a-zA-Z0-9]{5})$"
 
 
 
@@ -127,8 +134,12 @@ static client_fsm_state_t  state;
  */
 int checkPasswordValidity();
 
-
-
+/** @brief
+ *  @param
+ *  @param
+ *  @return
+ */
+int match(const char* string, const char* pattern);
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
@@ -236,7 +247,6 @@ main(int argc, char** argv) {
 
                 if      (strcmp(command, "help") == 0){
                     state = SEND_HELP;
-                    system("clear");
                 }
                 else if (strcmp(command, "login") == 0){ 
                     state = SEND_LOGIN;
@@ -425,7 +435,7 @@ main(int argc, char** argv) {
                     state = SEND_LOGIN_PASSWORD;
                 }
                 else {
-                    printf("%s\n", "\x1b[31m\033[1munregistered username.\x1b[0m\nGo ahead and register first.");
+                    printf("%s\n", "\x1b[31mUnregistered username.\x1b[0m\nGo ahead and register first.");
                     //                ^--red  ^--bold
                     state = CL_INIT;
                 }
@@ -464,12 +474,14 @@ main(int argc, char** argv) {
                 break;
 
             case CL_LOGIN:
-                printf(ANSI_COLOR_YELLOW ANSI_BOLD "(%s)" ANSI_COLOR_RESET "> ", user->username);
                 
+                printf(ANSI_COLOR_YELLOW ANSI_BOLD "(%s)" ANSI_COLOR_RESET "> ", user->username);
+
                 // read input
                 memset(command, '\0', BUFSIZE);
                 fgets(command, 30, stdin);
 
+            
                 // drop the new line and replace w/ the string termination
                 command[strlen(command)-1] = '\0';
                 
@@ -480,7 +492,6 @@ main(int argc, char** argv) {
 
 
                 if      (strcmp(command, "help") == 0){
-                    system("clear");
                     state = SEND_HELP_LOGGED;
                 }
                 else if (strcmp(command, "view") == 0) {
@@ -506,20 +517,16 @@ main(int argc, char** argv) {
 
 
                     if (strcmp(cmd, "reserve") == 0){
-                        if (strlen(booking->date) >= 3 && strlen(booking->date) <= 5)
+                        if (match(booking->date, REGEX_DATE))
                             state = SEND_RESERVE;    
                         else
                             state = INVALID_DATE;
                     }
                     else if (strcmp(cmd, "release") == 0){
 
-                        // printf("%s\n", booking->date);
-                        // printf("%s\n", booking->room);
-                        // printf("%s\n", booking->code);
-
-                        if (strlen(booking->date) >= 3 && strlen(booking->date) <= 5 && 
-                            atoi(booking->room) > 0 && atoi(booking->room) < 999 &&
-                            strlen(booking->code) == 5){
+                        if (match(booking->date, REGEX_DATE) && 
+                            match(booking->room, REGEX_ROOM) &&
+                            match(booking->code, REGEX_CODE)){
 
                             state = SEND_RELEASE;    
                         }
@@ -564,7 +571,6 @@ main(int argc, char** argv) {
                 writeSocket(sockfd, "res");
 
                 writeSocket(sockfd, booking->date);
-
 
                 state = READ_RESERVE_RESP;
                 break;
@@ -662,6 +668,16 @@ ABORT:
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
+
+int match(const char* string, const char* pattern)
+{
+    regex_t re;
+    if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) return 0;
+    int status = regexec(&re, string, 0, NULL, 0);
+    regfree(&re);
+    if (status != 0) return 0;
+    return 1;
+}
 
 
 int 

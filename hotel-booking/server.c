@@ -21,7 +21,6 @@
  *
  *
  * TODO:            - checkDateValidity()
- *                  - use regex to check date validity
  *
  */
 
@@ -52,7 +51,6 @@
 
 // miscellaneous
 #include <sqlite3.h>
-#include <regex.h>
 
 
 /* user-defined headers */
@@ -779,7 +777,7 @@ dispatcher (int conn_sockfd, int thread_index)
                     writeSocket(conn_sockfd, "\033[92mOK.\x1b[0m Reservation deleted successfully.");
                 }
                 else {
-                    writeSocket(conn_sockfd, "\x1b[31mFailed. \x1b[0mNo such reservation.");
+                    writeSocket(conn_sockfd, "\x1b[31mFailed. \x1b[0mYou have no such reservation.");
                 }
 
                 state = LOGIN;
@@ -1448,11 +1446,14 @@ releaseReservation(User* user, Booking* booking)
             strcat(sql_command, booking->code);
             strcat(sql_command, "'");
 
-            int rv;
-            rv = commitToDatabase(sql_command);
+            #if DEBUG
+                printf("Deleting from DB: %s\n", sql_command);
+            #endif
 
+            // freeing memory before returning
             free(query);
-            return rv; // 0 is ok.
+            return commitToDatabase(sql_command); // 0 is ok.
+
         }
     
     }

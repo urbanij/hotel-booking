@@ -41,10 +41,10 @@ endif
 
 
 server: server.c $(HEADERS)
-	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -g3 -std=c99
+	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -g3 -std=c11
 
 client: client.c $(HEADERS)
-	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c99
+	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c11
 
 
 
