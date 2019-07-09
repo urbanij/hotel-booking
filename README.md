@@ -5,7 +5,7 @@ Project specifications (ita):<br>
 [http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf](http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf)
 
 
-###Usage<sup>1</sup>:
+### Usage<sup>1</sup>:
 
 #### compilation:
 ```sh
@@ -31,8 +31,8 @@ where:<br>
 #### running with gdb debugger
 (may require root privileges on macOS)
 
-make sure to compile with `-DGDB_MODE` in order to avoid  flag, then run `gdb ./server`.<br>
-inside gdb type `r` to run and you're good to go.<br> For an easier debugging experience [this](https://github.com/cyrus-and/gdb-dashboard) is recommended.
+make sure to compile with `-DGDB_MODE`, then run `gdb ./server`.<br>
+Inside gdb type `r` to run and you're good to go.<br> For an easier debugging experience [this](https://github.com/cyrus-and/gdb-dashboard) is recommended.
 
 
 <br>

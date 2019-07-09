@@ -41,20 +41,24 @@ endif
 
 
 server: server.c $(HEADERS)
-	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -g3
+	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -g3 -std=c99
 
 client: client.c $(HEADERS)
-	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) 
+	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c99
 
 
 
 
 
 clean:
-	rm client_* 
-	rm server_*   
-	rm *.dSYM 	# gdb
+	rm -rf *.dSYM 	# gdb
+	rm -f client_* 
+	rm -f server_*   
 
 wipe:
-	rm bookings.db users.txt client_* server_*
+	rm -rf .data 
+	rm -rf *.dSYM 	# gdb
+	rm -f client_* 
+	rm -f server_*
+
 

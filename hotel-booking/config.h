@@ -17,9 +17,9 @@
 #define BUFSIZE                 2048        // buffer size: maximum length of messages
 #define BACKLOG                 10          // listen() function parameter
 
-#define USER_FILE               "users.txt" // text file containig users and encrypted passwords
+#define USER_FILE               ".data/users.txt" // text file containig users and encrypted passwords
 
-#define DATABASE                "bookings.db"
+#define DATABASE                ".data/bookings.db"
 
 #define PASSWORD_MAX_LENGTH     10
 
@@ -31,7 +31,7 @@
 /* customizable */
 
 
-#define NUM_THREADS             2           // # threads
+#define NUM_THREADS             3           // # threads
 #define NUM_CONNECTION          10          // # queued connections
 
 #define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user
@@ -39,7 +39,8 @@
 
 
 
-// fancy options
+////////////////////////// fancy options //////////////////////////
+
 #define DEBUG                   1
 
 
@@ -64,6 +65,7 @@
 #define ANSI_COLOR_BMAGENTA     "\x1b[95m"
 #define ANSI_COLOR_CYAN         "\x1b[36m"
 #define ANSI_COLOR_RESET        "\x1b[0m"
+#define ANSI_BOLD               "\033[1m"
 
 
 #endif

@@ -329,6 +329,7 @@ main(int argc, char** argv)
 
     // setup database
 
+    system("mkdir .data");
     if (setupDatabase() != 0){
         perror_die("Database error.");
     }
@@ -378,7 +379,9 @@ main(int argc, char** argv)
         inet_ntop(AF_INET, &client_addr.sin_addr, ip_client, INET_ADDRSTRLEN);
 
         printf("%s: \x1b[32mconnection established\x1b[0m  with client @ %s:%d\n",
-                                                    __func__, ip_client, client_addr.sin_port 
+                                                        "MAIN", // __func__, 
+                                                        ip_client, 
+                                                        client_addr.sin_port 
                                                     );
 
 
@@ -394,7 +397,9 @@ main(int argc, char** argv)
             }
         }
 
-        printf("%s: Thread #%d has been selected.\n", __func__, thread_index);
+        printf("%s: Thread #%d has been selected.\n",
+                                            "MAIN", // __func__, 
+                                            thread_index);
 
         fds[thread_index] = conn_sockfd;    // assigning socket file descriptor to the file descriptors array
         busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till its release
@@ -502,6 +507,7 @@ dispatcher (int conn_sockfd, int thread_index)
 
 
     // used when processing `view` request and send message back to client.
+    // good idea would be to use heap and realloc memory as it grows...
     char reservation_response[BUFSIZE];
     char view_response[BUFSIZE];
 
@@ -524,19 +530,19 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
                 if      (strcmp(command, "h") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "help");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "help");
                     state = HELP_UNLOGGED;
                 }
                 else if (strcmp(command, "r") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "register");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "register");
                     state = REGISTER;
                 }
                 else if (strcmp(command, "l") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "login");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "login");
                     state = LOGIN_REQUEST;
                 }
                 else if (strcmp(command, "q") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "quit");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "quit");
                     state = QUIT;
                 }
                 else {
@@ -593,8 +599,8 @@ dispatcher (int conn_sockfd, int thread_index)
                 #else
                     updateUsersRecordFile(user->username, user->actual_password);
                 #endif
-                writeSocket(conn_sockfd, "OK: Account was successfully setup.");
-                writeSocket(conn_sockfd, "Successfully registerd, you are now logged in.");
+                writeSocket(conn_sockfd, "password OK.");
+                writeSocket(conn_sockfd, "Successfully registerd, you are now logged-in.");
 
                 state = LOGIN;
                 break;
@@ -656,27 +662,27 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
                 if      (strcmp(command, "hh") == 0){ 
-                    printf("THREAD #%d: command received: %s\n", thread_index, "help");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "help");
                     state = HELP_LOGGED_IN;
                 }
                 else if (strcmp(command, "q") == 0){  
-                    printf("THREAD #%d: command received: %s\n", thread_index, "quit");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "quit");
                     state = QUIT;
                 }
                 else if (strcmp(command, "logout") == 0) {
-                    printf("THREAD #%d: command received: %s\n", thread_index, "logout");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "logout");
                     state = INIT;
                 }
                 else if (strcmp(command, "v") == 0){  
-                    printf("THREAD #%d: command received: %s\n", thread_index, "view");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "view");
                     state = VIEW;
                 }
                 else if (strcmp(command, "res") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "reserve");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "reserve");
                     state = CHECK_DATE_VALIDITY;
                 }
                 else if (strcmp(command, "rel") == 0){
-                    printf("THREAD #%d: command received: %s\n", thread_index, "release");
+                    printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "release");
                     state = RELEASE;
                 }
                 else {
@@ -751,6 +757,10 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case RELEASE:
+
+                // init before reading
+                memset(&booking, '\0', sizeof booking);
+
                 readSocket(conn_sockfd, booking.date);
                 readSocket(conn_sockfd, booking.room);
                 readSocket(conn_sockfd, booking.code);
@@ -766,10 +776,10 @@ dispatcher (int conn_sockfd, int thread_index)
                 rv = releaseReservation(user, &booking);
 
                 if (rv == 0){
-                    writeSocket(conn_sockfd, "OK. Reservation deleted successfully.");
+                    writeSocket(conn_sockfd, "\033[92mOK.\x1b[0m Reservation deleted successfully.");
                 }
                 else {
-                    writeSocket(conn_sockfd, "Failed. No such reservation.");
+                    writeSocket(conn_sockfd, "\x1b[31mFailed. \x1b[0mNo such reservation.");
                 }
 
                 state = LOGIN;
@@ -844,6 +854,10 @@ queryDatabase(const int query_id, const char* sql_command)
     
     query_t* query = (query_t*) malloc(sizeof(query_t)); // variable to be returned + its initialization
     //<-- MEMSETTING QUERY HERE CAUSED SEVER SEG FAULT where I assign query->id in the swithc case down below.
+    #if 0
+    memset(query->query_result, '\0', sizeof(query->query_result));
+    #endif
+
 
 
     sqlite3* db;
@@ -922,6 +936,7 @@ queryDatabase(const int query_id, const char* sql_command)
             break;
     }
 
+    // printf("ddd %d\n", *(int*)(query->query_result));
 
 
     return query;
@@ -1000,8 +1015,9 @@ busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName)
 
 int 
 entryValidCallback(void* NotUsed, int argc, char** argv, char** azColName) 
-{
+{   
     entry_id_g = atoi(argv[0]);
+
     #if DEBUG
         printf("Releasing entry with id %d\n", entry_id_g);
     #endif
@@ -1061,7 +1077,6 @@ usernameIsRegistered(char* u)
     }
     return 0;           // username `u` is new to the system, hence the registration can proceed.
 }
-
 
 
 
@@ -1128,7 +1143,7 @@ makeSalt(char* salt)
     r = r % ('z' - '0');
     salt[1] = '0' + r;
     
-    #if DEBUG
+    #if 0
         printf("Salt: %c%c\n", salt[0], salt[1]);
     #endif
 }
@@ -1238,7 +1253,12 @@ assignRoom(char* date)
      * assign that number+1 to the room.
      * if the calculated number exceed the total space of the hotel 
      * notify the client that the operation failed.
+        
+        fix this. 
+        if room get released if another room is booked the room number is duplicated.
+    
      */
+
     
     char sql_command[1024];
     memset(sql_command, '\0', sizeof(sql_command));
@@ -1296,14 +1316,44 @@ assignRandomCode()
     // init seed
     srand(time(NULL));
 
+    // rand code to be returned
     static char code[6];
-    
-    snprintf(
-        code, 
-        sizeof(code), 
-        "%c%c%c%c%c", 
-        ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A'));
-    
+
+    // Not only randomize code but also "randomize" (3 options) position of letter and digit.
+    int randomnumber;
+    randomnumber = rand() % 3;
+
+    switch (randomnumber){
+        case 0:
+        default:
+            snprintf(
+                code, 
+                sizeof(code), 
+                "%c%c%c%c%c", 
+                ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A')
+            );
+            break;
+
+
+        case 1:
+            snprintf(
+                code, 
+                sizeof(code), 
+                "%c%c%c%c%c", 
+                ((rand()%10)+'A'), ((rand()%10)+'A'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A')
+            );
+            break;
+
+        case 2:
+            snprintf(
+                code, 
+                sizeof(code), 
+                "%c%c%c%c%c", 
+                ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'A'), ((rand()%10)+'A')
+            );
+            break;
+    }
+
     return code;
 }
 
@@ -1317,17 +1367,16 @@ fetchUserReservations(char* u)
     char sql_command[1024];
     memset(sql_command, '\0', sizeof(sql_command));
 
-    strcat(sql_command, "SELECT \"date\", \"room\", \"code\" FROM Bookings WHERE user = '");
+    strcat(sql_command, "SELECT date, room, code FROM Bookings WHERE user = '");
     strcat(sql_command, u);
-    strcat(sql_command, "' ORDER BY id");
+    strcat(sql_command, "' ORDER BY id"); // i.e. order by reservation basically
     
 
     query = queryDatabase(0, sql_command);
 
 
-
     if (query->rv == 0){
-        // free(query); // cant free here because it has to be returned...
+        // free(query); // cant free here because it has to be returned... ¯\_(ツ)_/¯
         return (char*) query->query_result;
     }
     else {
@@ -1349,9 +1398,10 @@ releaseReservation(User* user, Booking* booking)
      * if NO: return failure value to main function
      */
 
+    // preparing payload
     char sql_command[1024];
     memset(sql_command, '\0', sizeof(sql_command));
-    strcat(sql_command, "SELECT id FROM Bookings WHERE user = '");
+    strcat(sql_command, "SELECT COUNT(id) FROM Bookings WHERE user = '");
     strcat(sql_command, user->username);
     strcat(sql_command, "' and date = '");
     strcat(sql_command, booking->date);
@@ -1361,19 +1411,28 @@ releaseReservation(User* user, Booking* booking)
     strcat(sql_command, booking->code);
     strcat(sql_command, "'");
     
-    query_t* query;
-    memset(&query, '\0', sizeof query);
 
+    // allocating dynamic variable where the result of the query will be stored.
+    query_t* query = (query_t*) malloc(sizeof(query_t));
+
+    // memset(query->query_result, '\0', sizeof(query->query_result));     // FIX this
+
+                    // debug at its finest here                        
+                    // printf("%lu\n", sizeof(query_t));
+                    // printf("%lu\n", sizeof(int));
+                    // printf("%lu\n", sizeof(void*));
+                    // printf("%lu\n", sizeof(char*));
 
     query = queryDatabase(2, sql_command);
-
-    printf("id = === %d\n", *(int*) &query->query_result ) ;
     
     if (query->rv == 0){
         
-        if ( *((int*) &query->query_result) == 0){  // entry `id` if in database, 0 otherwise.
+        if ( *((int*) query->query_result) == 0){  //1 if in database, 0 otherwise.
+            
+            free(query);
             return -1;
         }
+
         else {
 
             // prepare payload for wiping the entry from the table
@@ -1391,25 +1450,20 @@ releaseReservation(User* user, Booking* booking)
 
             int rv;
             rv = commitToDatabase(sql_command);
+
+            free(query);
             return rv; // 0 is ok.
         }
     
     }
     else {
         printf("%s\n", "Error querying the database!");
+
+        free(query);
         return -1;
     }
 
-
-
-
-
-
-
-    // DELETE FROM Bookings WHERE user = 'fra' and date = '1/4' and room = '2' and code = 'E884J'
-
 }
-
 
 
 

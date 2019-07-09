@@ -54,6 +54,9 @@
 
 
 #if HELP_MESSAGE_TYPE_1
+
+    // Only show the actual options
+
     #define HELP_UNLOGGED_MESSAGE "Commands:\n\
             \x1b[36m help     \x1b[0m --> show commands\n\
             \x1b[36m register \x1b[0m --> register an account\n\
@@ -67,6 +70,9 @@
             \x1b[36m logout                       \x1b[0m --> log out\n\
             \x1b[36m quit                         \x1b[0m --> log out and quit\n"
 #else
+
+    // show ALL the options no matter what
+
     #define HELP_UNLOGGED_MESSAGE "Commands:\n\
             \x1b[36m help                         \x1b[0m --> show commands\n\
             \x1b[36m register                     \x1b[0m --> register an account\n\
@@ -86,6 +92,7 @@
             \x1b[36m register                     \x1b[0m --> register an account     (you have to be logged-out)\n\
             \x1b[36m login                        \x1b[0m --> log into the system     (you have to be logged-out)\n"
 #endif
+#define INVALID_COMMAND_MESSAGE "\x1b[31mInvalid command.\x1b[0m\n"
 
 
 
@@ -252,7 +259,7 @@ main(int argc, char** argv) {
                 /* command doesn't match anything the server is supposed 
                  * to receive hence i don't send anything into the socket.
                  */
-                printf("\x1b[33mInvalid command.\x1b[0m \n");
+                printf(INVALID_COMMAND_MESSAGE);
             
                 state = CL_INIT;
                 break;
@@ -289,8 +296,6 @@ main(int argc, char** argv) {
                 }
                 state = CL_LOGIN;
                 break;
-
-
 
             case SEND_QUIT:
                 writeSocket(sockfd, "q");
@@ -459,7 +464,7 @@ main(int argc, char** argv) {
                 break;
 
             case CL_LOGIN:
-                printf(ANSI_COLOR_BMAGENTA "(%s)" ANSI_COLOR_RESET "> ", user->username);
+                printf(ANSI_COLOR_YELLOW ANSI_BOLD "(%s)" ANSI_COLOR_RESET "> ", user->username);
                 
                 // read input
                 memset(command, '\0', BUFSIZE);
@@ -530,18 +535,18 @@ main(int argc, char** argv) {
                 break;
 
             case INVALID_LOGGED_IN:
-                printf("\x1b[33mInvalid command.\x1b[0m \n");
+                printf(INVALID_COMMAND_MESSAGE);
                 state = CL_LOGIN;
                 
                 break;
 
             case INVALID_DATE:
-                printf("\x1b[33mInvalid date.\x1b[0m Make sure it's format is:\n\t      reserve [gg/mm]\n");
+                printf("\x1b[31mInvalid format.\x1b[0m Make sure the foramt is:\n\t        reserve [gg/mm]\n");
                 state = CL_LOGIN;
                 break;
 
             case INVALID_RELEASE:
-                printf("\x1b[33mInvalid release.\x1b[0m Make sure it's format is:\n\t         release [gg/mm] [room] [code]\n");
+                printf("\x1b[31mInvalid format.\x1b[0m Make sure the format is:\n\t        release [gg/mm] [room] [code]\n");
                 state = CL_LOGIN;
                 break;
 
@@ -572,7 +577,7 @@ main(int argc, char** argv) {
                     printf("%s\n", "Wrong date format");
                 }
                 else if (strcmp(command, "NOAVAL") == 0){
-                    printf("\x1b[31mHotel is sold out on %s/2020\x1b[0m\n", booking->date);
+                    printf("\x1b[31mNo room available on %s/2020\x1b[0m\n", booking->date);
                 }
                 else if (strcmp(command, "RESOK") == 0){
                     memset(booking->room, '\0', sizeof(booking->room));
@@ -621,8 +626,12 @@ main(int argc, char** argv) {
 
                 break;
 
+
+            // there is no default, every state transition is defined.
+            #if 0
             default:
                 state = CL_INIT;
+            #endif
 
             
         }
@@ -632,15 +641,15 @@ main(int argc, char** argv) {
     }
 
 
-    ABORT:
+ABORT:
 
     #if 1
-    free(username);
-    free(password);
+        free(username);
+        free(password);
     #endif
 
 
-    free(user);         // not sure it s right position
+    free(user);
     free(booking);
 
 
