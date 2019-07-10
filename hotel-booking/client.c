@@ -521,18 +521,33 @@ main(int argc, char** argv)
 
 
                     if (strcmp(cmd, "reserve") == 0){
-                        if (match(booking->date, REGEX_DATE_VALID))
-                            state = SEND_RESERVE;    
-                        else
+                        if (match(booking->date, REGEX_DATE_FORMAT)){
+                            if (match(booking->date, REGEX_DATE_VALID)){
+                                state = SEND_RESERVE;        
+                            } else {
+                                printf("\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n");
+                                state = CL_LOGIN;
+                            }
+                            
+                        }
+                        else{
                             state = INVALID_DATE;
+                        }
                     }
                     else if (strcmp(cmd, "release") == 0){
 
-                        if (match(booking->date, REGEX_DATE_VALID) && 
+                        if (match(booking->date, REGEX_DATE_FORMAT) && 
                             match(booking->room, REGEX_ROOM) &&
-                            match(booking->code, REGEX_CODE)){
-
-                            state = SEND_RELEASE;    
+                            match(booking->code, REGEX_CODE))
+                        {
+                            if (match(booking->date, REGEX_DATE_VALID)){
+                                state = SEND_RELEASE;
+                            }
+                            else {
+                                printf("\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n");
+                                state = CL_LOGIN;
+                            }
+                            
                         }
                         else {
                             state = INVALID_RELEASE;

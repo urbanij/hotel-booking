@@ -188,7 +188,7 @@ int     checkDateValidity       ();
  *  @param
  *  @return
  */
-int     saveReservation         (char* u, char* d, char* r, char* c);
+int     saveReservation         (User* user, Booking* booking);
 
 
 /** @brief Commit command to database
@@ -729,7 +729,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 // strcpy(booking.code, generateRandomString());
                 generateRandomString(booking.code, RESERVATION_CODE_LENGTH);
 
-                saveReservation(user->username, booking.date, booking.room, booking.code);
+                saveReservation(user, &booking);
 
                 writeSocket(conn_sockfd, "RESOK");
                 writeSocket(conn_sockfd, booking.room);
@@ -976,10 +976,10 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
         for (int i = 0; i < argc; i++)
         {
             if (i==0){
-                snprintf(tmp_str, sizeof(tmp_str), "   %s/2020, room ", argv[i]);
+                snprintf(tmp_str, sizeof(tmp_str), "   %s/2020:  room ", argv[i]);
             }
             else if (i == 1){
-                snprintf(tmp_str, sizeof(tmp_str), "%s, reserve code: ", argv[i]);   
+                snprintf(tmp_str, sizeof(tmp_str), "%s   res. code ", argv[i]);   
             }
             else if (i == 2){
                 snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
@@ -1212,7 +1212,7 @@ checkDateValidity()
 
 
 int 
-saveReservation(char* u, char* d, char* r, char* c)
+saveReservation(User* u, Booking* b)
 {
 
     /* You may want to add a check to see whether the same 
@@ -1224,7 +1224,7 @@ saveReservation(char* u, char* d, char* r, char* c)
 
 
     // manipulating date and putting into this form <yyyymmdd> which is easier to sort. remember d is <dd/mm>
-    char date_yyyymmdd[9] = {'2','0','2','0',d[3],d[4],d[0],d[1]};
+    char date_yyyymmdd[9] = {'2','0','2','0',b->date[3],b->date[4],b->date[0],b->date[1]};
 
 
     char sql_command[256];
@@ -1232,15 +1232,15 @@ saveReservation(char* u, char* d, char* r, char* c)
     memset(sql_command, '\0', sizeof(sql_command));
 
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, date_yyyymmdd, room, code) VALUES('");
-    strcat(sql_command, u);
+    strcat(sql_command, u->username);
     strcat(sql_command, "', '");                    //         ^---- database table field names
-    strcat(sql_command, d);
+    strcat(sql_command, b->date);
     strcat(sql_command, "', '");
     strcat(sql_command, date_yyyymmdd);
     strcat(sql_command, "', '");
-    strcat(sql_command, r);
+    strcat(sql_command, b->room);
     strcat(sql_command, "', '");
-    strcat(sql_command, c);
+    strcat(sql_command, b->code);
     strcat(sql_command, "');");
     
     #if DEBUG
@@ -1349,7 +1349,11 @@ fetchUserReservations(char* u)
 
     strcat(sql_command, "SELECT date, room, code FROM Bookings WHERE user = '");
     strcat(sql_command, u);
-    strcat(sql_command, "' ORDER BY date_yyyymmdd, room");
+    #if SORT_VIEW_BY_DATE
+        strcat(sql_command, "' ORDER BY date_yyyymmdd, room");
+    #else
+        strcat(sql_command, "' ORDER BY id");
+    #endif
     
 
     query = queryDatabase(0, sql_command);
