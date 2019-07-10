@@ -54,10 +54,13 @@
 
 
 // regex patterns
-#define REGEX_DATE "^(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])-02)|(29-02))$"
-#define REGEX_ROOM "^[1-9]{1,2}$"
-#define REGEX_CODE "^([a-zA-Z0-9]{5})$"
-
+#define REGEX_ROOM          "^[1-9]{1,2}$"
+#define REGEX_CODE          "^([a-zA-Z0-9]{5})$"
+#define REGEX_DATE_FORMAT   "^[0-9]{2}/[0-9]{2}$"
+#define REGEX_DATE_VALID    "^(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])/02)|(29/02))$"
+                            /* inspired by [this answer](https://stackoverflow.com/a/21583100/6164816), I've then removed the year part and replaced "-" with "/".
+                             * ^(((0[1-9]|[12]\d|3[01])\-(0[13578]|1[02])\-((19|[2-9]\d)\d{2}))|((0[1-9]|[12]\d|30)\-(0[13456789]|1[012])\-((19|[2-9]\d)\d{2}))|((0[1-9]|1\d|2[0-8])\-02\-((19|[2-9]\d)\d{2}))|(29\-02\-((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))))$
+                             */
 
 
 #if HELP_MESSAGE_TYPE_1
@@ -145,7 +148,8 @@ int match(const char* string, const char* pattern);
 
 
 int 
-main(int argc, char** argv) {
+main(int argc, char** argv) 
+{
 
     // clear terminal
     system("clear");
@@ -517,14 +521,14 @@ main(int argc, char** argv) {
 
 
                     if (strcmp(cmd, "reserve") == 0){
-                        if (match(booking->date, REGEX_DATE))
+                        if (match(booking->date, REGEX_DATE_VALID))
                             state = SEND_RESERVE;    
                         else
                             state = INVALID_DATE;
                     }
                     else if (strcmp(cmd, "release") == 0){
 
-                        if (match(booking->date, REGEX_DATE) && 
+                        if (match(booking->date, REGEX_DATE_VALID) && 
                             match(booking->room, REGEX_ROOM) &&
                             match(booking->code, REGEX_CODE)){
 
@@ -548,12 +552,12 @@ main(int argc, char** argv) {
                 break;
 
             case INVALID_DATE:
-                printf("\x1b[31mInvalid format.\x1b[0m Make sure the foramt is:\n\t        reserve [gg/mm]\n");
+                printf("\x1b[31mInvalid format.\x1b[0m Make sure the foramt is:\n\t        reserve [dd/mm]\n");
                 state = CL_LOGIN;
                 break;
 
             case INVALID_RELEASE:
-                printf("\x1b[31mInvalid format.\x1b[0m Make sure the format is:\n\t        release [gg/mm] [room] [code]\n");
+                printf("\x1b[31mInvalid format.\x1b[0m Make sure the format is:\n\t        release [dd/mm] [room] [code]\n");
                 state = CL_LOGIN;
                 break;
 
@@ -669,7 +673,8 @@ ABORT:
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
-int match(const char* string, const char* pattern)
+int 
+match(const char* string, const char* pattern)
 {
     regex_t re;
     if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) return 0;

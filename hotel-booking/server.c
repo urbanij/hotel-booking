@@ -233,9 +233,11 @@ int     setupDatabase();
 char*   assignRoom              (char* date);
 
 /** @brief Generate random reservation code
- *  @return CODE
+ *  @param
+ *  @param
+ *  @return Void
  */
-char*   assignRandomCode        ();
+void    generateRandomString    (char* str, size_t size);
 
 /** @brief Open database and returns the reservation for the user
  *         the called the function.
@@ -723,7 +725,9 @@ dispatcher (int conn_sockfd, int thread_index)
 
             case RESERVE_CONFIRMATION:
                 strcpy(booking.room, assignRoom(booking.date));
-                strcpy(booking.code, assignRandomCode());
+                
+                // strcpy(booking.code, generateRandomString());
+                generateRandomString(booking.code, RESERVATION_CODE_LENGTH);
 
                 saveReservation(user->username, booking.date, booking.room, booking.code);
 
@@ -1031,11 +1035,12 @@ setupDatabase()
 
     char* sql_command = QUOTE(
             CREATE TABLE IF NOT EXISTS Bookings(
-                `id`        INTEGER     PRIMARY KEY,
-                `user`      TEXT        DEFAULT NULL,
-                `date`      TEXT        DEFAULT NULL,
-                `room`      TEXT        DEFAULT NULL,
-                `code`      TEXT        DEFAULT NULL,
+                `id`            INTEGER     PRIMARY KEY,
+                `user`          TEXT        DEFAULT NULL,
+                `date`          TEXT        DEFAULT NULL,
+                `date_yyyymmdd` TEXT        DEFAULT NULL,
+                `room`          TEXT        DEFAULT NULL,
+                `code`          TEXT        DEFAULT NULL,
 
                 UNIQUE(user, date, code)
             );
@@ -1217,14 +1222,21 @@ saveReservation(char* u, char* d, char* r, char* c)
 
     int rv;
 
-    char sql_command[256 * sizeof(char)];
+
+    // manipulating date and putting into this form <yyyymmdd> which is easier to sort. remember d is <dd/mm>
+    char date_yyyymmdd[9] = {'2','0','2','0',d[3],d[4],d[0],d[1]};
+
+
+    char sql_command[256];
 
     memset(sql_command, '\0', sizeof(sql_command));
 
-    strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, room, code) VALUES('");
+    strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, date_yyyymmdd, room, code) VALUES('");
     strcat(sql_command, u);
     strcat(sql_command, "', '");                    //         ^---- database table field names
     strcat(sql_command, d);
+    strcat(sql_command, "', '");
+    strcat(sql_command, date_yyyymmdd);
     strcat(sql_command, "', '");
     strcat(sql_command, r);
     strcat(sql_command, "', '");
@@ -1256,6 +1268,7 @@ assignRoom(char* date)
         if room get released if another room is booked the room number is duplicated.
     
      */
+
 
     
     char sql_command[1024];
@@ -1307,52 +1320,21 @@ assignRoom(char* date)
 }
 
 
-char* 
-assignRandomCode()
+void 
+generateRandomString(char* str, size_t size)
 {
 
-    // init seed
-    srand(time(NULL));
+    const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-    // rand code to be returned
-    static char code[6];
-
-    // Not only randomize code but also "randomize" (3 options) position of letter and digit.
-    int randomnumber;
-    randomnumber = rand() % 3;
-
-    switch (randomnumber){
-        case 0:
-        default:
-            snprintf(
-                code, 
-                sizeof(code), 
-                "%c%c%c%c%c", 
-                ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A')
-            );
-            break;
-
-
-        case 1:
-            snprintf(
-                code, 
-                sizeof(code), 
-                "%c%c%c%c%c", 
-                ((rand()%10)+'A'), ((rand()%10)+'A'),((rand()%10)+'0'), ((rand()%10)+'0'), ((rand()%10)+'A')
-            );
-            break;
-
-        case 2:
-            snprintf(
-                code, 
-                sizeof(code), 
-                "%c%c%c%c%c", 
-                ((rand()%10)+'A'), ((rand()%10)+'0'),((rand()%10)+'0'), ((rand()%10)+'A'), ((rand()%10)+'A')
-            );
-            break;
+    if (size) {
+        --size;
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % (int) (sizeof charset - 1);
+            str[n] = charset[key];
+        }
+        // str[size] = '\0';
     }
-
-    return code;
+    return;
 }
 
 
@@ -1367,7 +1349,7 @@ fetchUserReservations(char* u)
 
     strcat(sql_command, "SELECT date, room, code FROM Bookings WHERE user = '");
     strcat(sql_command, u);
-    strcat(sql_command, "' ORDER BY id"); // i.e. order by reservation basically
+    strcat(sql_command, "' ORDER BY date_yyyymmdd, room");
     
 
     query = queryDatabase(0, sql_command);
