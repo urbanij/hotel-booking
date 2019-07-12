@@ -122,6 +122,11 @@ static int          entry_id_g;
 static int          hotel_max_available_rooms;
 
 
+static char         USER_FILE[20];
+static char         DATABASE[20];
+
+
+
 // ************************************************* //
 
 
@@ -280,6 +285,20 @@ main(int argc, char** argv)
     // clear terminal
     system("clear");
 
+    
+    strcat(USER_FILE, DATA_FOLDER);
+    strcat(USER_FILE, "/");
+    strcat(USER_FILE, USER_FILE_NAME);
+
+    
+    strcat(DATABASE, DATA_FOLDER);
+    strcat(DATABASE, "/");
+    strcat(DATABASE, DATABASE_NAME);
+
+
+
+
+
     int conn_sockfd;    // connected socket file descriptor
 
     #if GDB_MODE
@@ -333,9 +352,10 @@ main(int argc, char** argv)
     
 
     // setup database
+    char mkdir_command[12] = "mkdir ";
+    strcat(mkdir_command, DATA_FOLDER); // DATA_FOLDER set inside `config.h`
+    system(mkdir_command);
 
-    // mkdir .data folder if not existing. if exist it complains but proceeds... fine.
-    system("mkdir .data");
 
     if (setupDatabase() != 0){
         perror_die("Database error.");

@@ -4,7 +4,7 @@
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
  * @date            Mon Jul  1 12:43:37 CEST 2019
- * @brief           
+ * @brief           configuration file. edit this before compiling.
  *
  */
 
@@ -20,8 +20,11 @@
 
 ////////////////////////// data //////////////////////////
 
-#define USER_FILE               ".data/users.txt"       // text file containig users and relative encrypted passwords
-#define DATABASE                ".data/bookings.db"
+#define DATA_FOLDER             ".data"
+
+// USER_FILE and DATABASE will be saved inside DATA_FOLDER/
+#define USER_FILE_NAME          "users.txt"       ///< text file containig users and relative encrypted passwords
+#define DATABASE_NAME           "bookings.db"
 
 
 ////////////////////////// customizable //////////////////////////
