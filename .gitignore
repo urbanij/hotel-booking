@@ -8,6 +8,9 @@ server_*
 server
 *.out
 
+# gdb
+.gdb_history
+
 # objects
 *.o
 

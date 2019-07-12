@@ -1311,70 +1311,6 @@ saveReservation(User* u, Booking* b)
     return 0;
 }
 
-#if 0
-char* 
-assignRoom(char* date)
-{
-    /* read from database last room number for that day and 
-     * assign that number+1 to the room.
-     * if the calculated number exceed the total space of the hotel 
-     * notify the client that the operation failed.
-        
-        fix this. 
-        if room get released if another room is booked the room number is duplicated.
-    
-     */
-
-
-    char sql_command[1024];
-    memset(sql_command, '\0', sizeof(sql_command));
-
-    strcat(sql_command, "SELECT COUNT(room) FROM Bookings WHERE date = '");
-    strcat(sql_command, date);
-    strcat(sql_command, "'");
-
-
-
-    // Querying the database with the command just created
-    query_t* query = (query_t*) malloc(sizeof(query_t));
-    // memset(&query, 0, sizeof query );
-
-    query = queryDatabase(1, sql_command);
-
-
-    // Checking the results of the query
-    if (query->rv == 0){     // if return value is not 0, something went wrong.
-
-        int rooms_busy;
-
-        // turn into integer the result of the query 
-        // i.e.: rooms busy for the specified date.
-        rooms_busy = atoi(query->query_result);
-        rooms_busy++;
-
-        if (rooms_busy > hotel_max_available_rooms){
-            free(query);
-            return "ERR";
-        }
-        else {
-            
-            static char rooms_busy_str[4];
-            sprintf(rooms_busy_str, "%d", rooms_busy);
-
-            free(query);
-            return rooms_busy_str;
-
-        }
-    }
-    else {
-        printf("%s\n", "Error querying the database!");
-        free(query);
-        return "";
-    }
-
-}
-#endif
-
 
 
 char* 
@@ -1384,101 +1320,131 @@ assignRoom(char* date)
     char sql_command[512];
     memset(sql_command, '\0', sizeof(sql_command));
 
-/*
-        -- how the query works:
-        --       1) first part selects a room stacked on top of the previous ones
-        --       2) second part looks for a room that has been reserved and then released
-        --          leaving a gap between two adjactent reservations
-        --       3) ifnull check is performed to make sure it doesn't return NULL 
-        --          which would make MIN fail.
-        --       4) the min of those two selects is choosen.
-        --
-        -- the query returns:   a valid room number (OK) or 999 (in that
-        --                      case I can tell there is no room available)
-
-        SELECT MAX
-        (
-            (
-                SELECT ifnull
-                (
-
-                    (
-                        SELECT   (room + 1)
-                        FROM Bookings
-                        WHERE (
-                            (date = '15/09') 
-                            AND 
-                            room+1 <= 4
-                            AND 
-                            (room + 1 NOT IN 
-                                (SELECT DISTINCT room FROM Bookings WHERE date = '15/09')
-                            )
-                        )
-                    ),
-                    1
-                )
-            )
-            ,
-            (    
-                SELECT ifnull
-                (
-                    (
-                        SELECT   (room -1)
-                        FROM Bookings
-                        WHERE (
-                            (date = '15/09') 
-                            AND 
-                            room-1 > 0
-                            AND 
-                            (room - 1 NOT IN 
-                                (SELECT DISTINCT room FROM Bookings WHERE date = '15/09')
-                            )
-                        )
-                    ),
-                    0  
-                )
-            )
-        )
-
-    */
-
-    char hotel_max_available_rooms_string[4];
-    sprintf(hotel_max_available_rooms_string, "%d", hotel_max_available_rooms);
-
-
-    // pushing THAT query into `sql_command` string.
-    strcat(sql_command, "SELECT MAX ( ( SELECT ifnull ( ( SELECT (room + 1) FROM Bookings WHERE ( (date = '");
+    strcat(sql_command, "SELECT count(id) from Bookings WHERE date = '");
     strcat(sql_command, date);
-    strcat(sql_command, "') AND room+1 <= ");
-    strcat(sql_command, hotel_max_available_rooms_string);
-    strcat(sql_command, " AND (room + 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
-    strcat(sql_command, date);
-    strcat(sql_command, "') ) ) ), 1 ) ) , ( SELECT ifnull ( ( SELECT (room -1) FROM Bookings WHERE ( (date = '");
-    strcat(sql_command, date);
-    strcat(sql_command, "') AND room-1 > 0 AND (room - 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
-    strcat(sql_command, date);
-    strcat(sql_command, "') ) ) ), 0 ) ) )");
+    strcat(sql_command, "'");
 
-    printf("%s\n", sql_command);
-    
 
     // Querying the database with the command just created
     query_t* query = (query_t*) malloc(sizeof(query_t));
     // memset(&query, 0, sizeof query );
 
+
+    // initialize that long variable
     query = queryDatabase(1, sql_command);
+
 
 
     // Checking the results of the query
     if (query->rv == 0){     // if return value is not 0, something went wrong.
 
-        if (atoi(query->query_result) == 0){   // if query result = 0
-            free(query);
-            return "ERR";
+        if (atoi(query->query_result) == 0){
+            // hotel is actually empty on that date.
+            // assigning room 1 which is obviously free.
+            return "1";
         }
         else {
-            free(query);
-            return query->query_result; // NUMBER as string
+
+            /*
+                
+                -- most convoluted way I could come up with to find a free room.
+                -- how this works:
+                --       1) first part selects a room stacked on top of the previous ones
+                --       2) second part looks for a room that has been reserved and then released
+                --          leaving a gap between two adjactent reservations
+                --       3) ifnull check is performed to make sure it doesn't return NULL 
+                --          which would make MIN fail.
+                --       4) the min of those two selects is choosen.
+                --
+
+                SELECT MIN
+                (
+                    (
+                        SELECT ifnull
+                        (
+
+                            (
+                                SELECT   (room + 1)
+                                FROM Bookings
+                                WHERE (
+                                    (date = '<DATE_OF_INTEREST>') 
+                                    AND 
+                                    room+1 <= <hotel_max_available_rooms>
+                                    AND 
+                                    (room + 1 NOT IN 
+                                        (SELECT DISTINCT room FROM Bookings WHERE date = '<DATE_OF_INTEREST>')
+                                    )
+                                )
+                            ),
+                            999
+                        )
+                    )
+                    ,
+                    (    
+                        SELECT ifnull
+                        (
+                            (
+                                SELECT   (room -1)
+                                FROM Bookings
+                                WHERE (
+                                    (date = '<DATE_OF_INTEREST>') 
+                                    AND 
+                                    room-1 > 0
+                                    AND 
+                                    (room - 1 NOT IN 
+                                        (SELECT DISTINCT room FROM Bookings WHERE date = '<DATE_OF_INTEREST>')
+                                    )
+                                )
+                            ),
+                            999  
+                        )
+                    )
+                )
+
+            */
+
+            char hotel_max_available_rooms_string[4];
+            sprintf(hotel_max_available_rooms_string, "%d", hotel_max_available_rooms);
+
+
+            // pushing THAT query into `sql_command` string.
+
+            memset(sql_command, '\0', sizeof(sql_command));
+
+            strcat(sql_command, "SELECT MIN ( ( SELECT ifnull ( ( SELECT (room + 1) FROM Bookings WHERE ( (date = '");
+            strcat(sql_command, date);
+            strcat(sql_command, "') AND room+1 <= ");
+            strcat(sql_command, hotel_max_available_rooms_string);
+            strcat(sql_command, " AND (room + 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
+            strcat(sql_command, date);
+            strcat(sql_command, "') ) ) ), 999 ) ) , ( SELECT ifnull ( ( SELECT (room -1) FROM Bookings WHERE ( (date = '");
+            strcat(sql_command, date);
+            strcat(sql_command, "') AND room-1 > 0 AND (room - 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
+            strcat(sql_command, date);
+            strcat(sql_command, "') ) ) ), 999 ) ) )");
+
+            printf("%s\n", sql_command);
+
+
+            query = queryDatabase(1, sql_command);
+
+            // Checking the results of the query
+            if (query->rv == 0){     // if return value is not 0, something went wrong.
+
+                if (atoi(query->query_result) == 999){
+                    // hotel is full
+                    return "FULL";
+                }
+                else {
+                    return query->query_result; // NUMBER as string
+                }
+            }
+            else {
+                printf("%s\n", "Error querying the database!");
+                free(query);
+                return "";
+            }
+
         }
     }
     else {
@@ -1486,8 +1452,10 @@ assignRoom(char* date)
         free(query);
         return "";
     }
+}   
 
-}
+
+
 
 
 void 
@@ -1621,8 +1589,5 @@ releaseReservation(User* user, Booking* booking)
     }
 
 }
-
-
-
 
 
