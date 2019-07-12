@@ -12,7 +12,8 @@ server
 *.o
 
 #doxy files
-doxygen
+html
+latex
 
 # local storage
 users.txt

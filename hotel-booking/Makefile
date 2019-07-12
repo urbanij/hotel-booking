@@ -8,9 +8,8 @@
  #
 
 
-
-
-all: server client
+CC=gcc
+CFLAGS=-Wall
 
 HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h 
 
@@ -29,39 +28,46 @@ endif
 
 
 # custom libraries to link against based on plaftorm.
-LINKING_LIB :=
+LIBS :=
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-	LINKING_LIB:=-lpthread -lcrypt
+	LIBS:=-lpthread -lcrypt -lsqlite3
 endif
 ifeq ($(UNAME_S),Darwin)
-	LINKING_LIB:=
+	LIBS:= -lsqlite3
 endif
 
 
 
-server: server.c
-	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -std=c11 -g3
+all: server client
 
-client: client.c
-	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c11 -g3
+server.o: server.c $(HEADERS)
+	gcc -c $(CFLAGS) server.c -o server.o -std=c11 -g3
+
+server: server.o
+	gcc $(CFLAGS) server.o -o server$(EXTENSION) $(LIBS) 
+
+client.o: client.c $(HEADERS)
+	gcc -c $(CFLAGS) client.c -o client.o -std=c11 -g3
+
+client: client.o
+	gcc $(CFLAGS) client.o -o client$(EXTENSION)
+
 
 
 
 doxy:
-	doxygen && cd doxygen/latex && make
+	doxygen && cd docs/latex && make
+
 
 clean:
 	rm -rf *.dSYM 	# gdb
 	rm -f client_* 
 	rm -f server_*
-	rm -rf doxygen   
+	rm -f *.o
+	rm -rf docs
 
-wipe:
+wipe:	# wipes out database and users.txt 
 	rm -rf .data 
-	rm -rf *.dSYM 	# gdb
-	rm -f client_* 
-	rm -f server_*
-	rm -rf doxygen
-
+	
 
