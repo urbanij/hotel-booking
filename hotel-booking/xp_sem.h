@@ -3,7 +3,7 @@
  * Fri May 24 19:34:46 CEST 2019
  *
  *
- * `semaphore.h` is deprecated on macOS, thus this header file.
+ * `semaphore.h` is deprecated on macOS, hence this header file.
  * (https://stackoverflow.com/a/27847103)
  */
 
@@ -64,13 +64,6 @@ xp_sem_wait(xp_sem_t* s)
     #ifdef __APPLE__
         dispatch_semaphore_wait(s->sem, DISPATCH_TIME_FOREVER);
     #else
-        #if 0
-        int r;
-        do
-        {
-            r = sem_wait(&s->sem);
-        } while (r == -1 && errno == EINTR);
-        #endif
         sem_wait(&s->sem);
     #endif
 }

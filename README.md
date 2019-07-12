@@ -40,4 +40,4 @@ Inside gdb type `r` to run and you're good to go.<br> For an easier debugging ex
 [Francesco Urbani](https://urbanij.github.io/)
 
 ---
-<sup>1</sup>: tested on Linux Ubuntu and macOS
+<sup>1</sup>: tested on Linux Ubuntu 18, Raspbian and macOS

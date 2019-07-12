@@ -1,10 +1,10 @@
  #
- # @project:        hotel-booking
- # @file:           Makefile
- # @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ # @name            hotel-booking
+ # @file            Makefile
+ # @authors         Francesco Urbani <https://urbanij.github.io/>
  #
- # @date:           Fri Jun  7 16:47:28 CEST 2019
- # @Description:    Makefile
+ # @date            Fri Jun  7 16:47:28 CEST 2019
+ # @brief           Makefile
  #
 
 
@@ -40,25 +40,28 @@ endif
 
 
 
-server: server.c $(HEADERS)
-	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -g3 -std=c11
+server: server.c
+	gcc -Wall server.c -o server$(EXTENSION) $(LINKING_LIB) -lsqlite3 -std=c11 -g3
 
-client: client.c $(HEADERS)
-	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c11
-
-
+client: client.c
+	gcc -Wall client.c -o client$(EXTENSION) $(LINKING_LIB) -std=c11 -g3
 
 
+
+doxy:
+	doxygen && cd doxygen/latex && make
 
 clean:
 	rm -rf *.dSYM 	# gdb
 	rm -f client_* 
-	rm -f server_*   
+	rm -f server_*
+	rm -rf doxygen   
 
 wipe:
 	rm -rf .data 
 	rm -rf *.dSYM 	# gdb
 	rm -f client_* 
 	rm -f server_*
+	rm -rf doxygen
 
 

@@ -1,30 +1,26 @@
 /**
- * @project:        hotel-booking
- * @file:           server.c
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            server.c
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Mon Jul  1 12:31:31 CEST 2019
- * @Description:    server side
+ * @date            Mon Jul  1 12:31:31 CEST 2019
+ * @brief           server side
  *
  *
- * @installation:   On Linux Ubuntu sqlite3 is not shipped by default, install it by typing:
+ * *installation    On Linux Ubuntu sqlite3 is not shipped by default, install it by typing:
  *                  sudo apt-get install libsqlite3-dev
  *
- *    - optional:   install [DB Browser for SQLite](https://sqlitebrowser.org/)
+ *    **optional    install [DB Browser for SQLite](https://sqlitebrowser.org/)
  *                  (Debian:) sudo apt-get update && sudo apt-get install sqlitebrowser
  *                  (macOS:)  brew cask install db-browser-for-sqlite
  *
  * 
- * @compilation:    `make server` or `gcc server.c -o server [-lcrypt -lpthread] -lsqlite3`
- *
- * LOC: cat server.c | sed '/^\s*$/d' | wc -l
+ * *compilation     `make server` or `gcc server.c -o server [-lcrypt -lpthread] -lsqlite3`
  *
  *
- * TODO:            - checkDateValidity()
+ * TODO:            
  *
  */
-
-/* POSIX libraries */
 
 // standard
 #include <stdio.h>
@@ -46,7 +42,7 @@
 #ifdef __linux__
     #include <crypt.h>
 #else
-    // crypt() is part of `unistd.h` on __APPLE__
+    // crypt() function is part of `unistd.h` on __APPLE__
 #endif
 
 // miscellaneous
@@ -76,9 +72,22 @@
 
 /********************************/
 /*                              */
-/*      custom data types       */
+/*            macros            */
 /*                              */
 /********************************/
+
+
+/* from documentation: https://www.sqlite.org/threadsafe.html
+ *  Single-thread   : 0     : all mutexes are disabled and SQLite is unsafe to use in more than a single thread at once.
+ *  Serialized      : 1     : SQLite can be safely used by multiple threads with no restriction.
+ *  Multi-thread    : 2     : SQLite can be safely used by multiple threads provided that no single database 
+ *                            connection is used simultaneously in two or more threads
+
+ * Setting SQL mode to Multi-thread. 
+ * In this mode, SQLite can be safely used by multiple threads provided 
+ * that no single database connection is used simultaneously in two or more threads.
+ */
+#define SQLITE_THREADSAFE       2   // 1 is the default
 
 
 
@@ -89,6 +98,7 @@
 /********************************/
 
 static xp_sem_t     lock_g;                     // global lock
+static xp_sem_t     users_lock_g;               // global lock for accessing the file `users.txt`
 
 
 static xp_sem_t     free_threads;               // semaphore for waiting for free threads
@@ -109,8 +119,14 @@ static char         rooms_busy_g[4];
 static int          entry_id_g;
 
 
-static int          hotel_total_rooms_g;
+static int          hotel_max_available_rooms;
 
+
+// ************************************************* //
+
+
+
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /*                       __        __
  *     ____  _________  / /_____  / /___  ______  ___  _____
@@ -127,7 +143,7 @@ static int          hotel_total_rooms_g;
  *   @param opaque 
  *   @return Void*
  */
-void*   threadHandler           (void* opaque);
+void*       threadHandler(void* opaque);
 
 /** @brief Command dispatcher: actually serving the requests of the client.
  *         Runs inside the threadHandler functions and dispatches
@@ -137,7 +153,7 @@ void*   threadHandler           (void* opaque);
  *  @param thread_index Thread index
  *  @return Void.
  */
-void    dispatcher              (int sockfd, int thread_index);
+void        dispatcher(int sockfd, int thread_index);
 
 /** @brief Takes a username `u` and opens the file 
  *         `users.txt` to see if such username is
@@ -145,7 +161,7 @@ void    dispatcher              (int sockfd, int thread_index);
  *  @param u Username
  *  @return 0 if username is in file, -1 otherwise
  */
-int     usernameIsRegistered     (char* u);
+int         usernameIsRegistered(char* u);
 
 
 /** @brief
@@ -153,20 +169,20 @@ int     usernameIsRegistered     (char* u);
  *  @param
  *  @return
  */
-int     updateUsersRecordFile   (char*, char*);
+int         updateUsersRecordFile(char*, char*);
 
 /** @brief Takes plain text password and return the encrypted version of it
  *  @param password The plain text password
  *  @return encrypted password
  */
-char*   encryptPassword         (char* password);
+char*       encryptPassword(char* password);
 
 /** @brief
  *  @param
  *  @param
  *  @return
  */
-void    makeSalt                (char* salt);
+void        makeSalt(char* salt);
 
 
 /** @brief
@@ -174,42 +190,36 @@ void    makeSalt                (char* salt);
  *  @param
  *  @return
  */
-int     checkIfPasswordMatches  (char*, char*);
+int         checkIfPasswordMatches(char*, char*);
+
 
 /** @brief
  *  @param
  *  @param
  *  @return
  */
-int     checkDateValidity       ();
-
-/** @brief
- *  @param
- *  @param
- *  @return
- */
-int     saveReservation         (User* user, Booking* booking);
+int         saveReservation(User* user, Booking* booking);
 
 
 /** @brief Commit command to database
  *  @param sql_command Sql command to be committed
  *  @return 0 if successful, !0 if not successful.
  */
-int     commitToDatabase        (const char* sql_command);
+int         commitToDatabase(const char* sql_command);
 
 /** @brief Query the database
  *  @param query_id
  *  @param sql_command 
  *  @return struct query (i.e.: return value (int), and query response (char*) )
  */
-query_t* queryDatabase          (const int query_id, const char* sql_command);
+query_t*    queryDatabase(const int query_id, const char* sql_command);
 
 /** @brief Used by queryDatabase()
  *  @param
  *  @param
  *  @return
  */
-int     viewCallback            (void* NotUsed, int argc, char** argv, char** azColName);
+int         viewCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
 
 /** @brief Used by queryDatabase()
@@ -217,34 +227,40 @@ int     viewCallback            (void* NotUsed, int argc, char** argv, char** az
  *  @param
  *  @return
  */
-int     busy_roomsCallback      (void* NotUsed, int argc, char** argv, char** azColName);
+int         busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
-int     entryValidCallback      (void* NotUsed, int argc, char** argv, char** azColName);
+
+/** @brief 
+ *  @param
+ *  @param
+ *  @return
+ */
+int         entryValidCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
 /** @brief Initial database setup. Creates the table Booking.
  *  @return return value (0 OK; !0 not OK)
  */
-int     setupDatabase();
+int         setupDatabase();
 
 /** @brief Assign room to user upon `reserve` request.
  *  @param date
- *  @return room number (string)
+ *  @return room number (string) or "ERR" to notify error (no room available)
  */
-char*   assignRoom              (char* date);
+char*       assignRoom(char* date);
 
 /** @brief Generate random reservation code
  *  @param
  *  @param
  *  @return Void
  */
-void    generateRandomString    (char* str, size_t size);
+void        generateRandomString(char* str, size_t size);
 
 /** @brief Open database and returns the reservation for the user
  *         the called the function.
  *  @param username
  *  @return 
  */
-char*   fetchUserReservations   (char* u);
+char*       fetchUserReservations(char* u);
 
 /** @brief 
  *
@@ -252,19 +268,10 @@ char*   fetchUserReservations   (char* u);
  *  @param booking
  *  @return 0 (succ) or -1 (fail)
  */
-int     releaseReservation      (User* user, Booking* booking);
+int         releaseReservation(User* user, Booking* booking);
 
 
-// . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-
-
-
-/********************************/
-/*                              */
-/*          functions           */
-/*                              */
-/********************************/
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 int 
@@ -275,7 +282,7 @@ main(int argc, char** argv)
 
     int conn_sockfd;    // connected socket file descriptor
 
-    #ifdef GDB_MODE
+    #if GDB_MODE
         char port[5];
         printf("Insert port number: ");
         scanf("%s", port);
@@ -285,9 +292,12 @@ main(int argc, char** argv)
             .port = atoi(port)
         };
 
-        hotel_total_rooms_g = 3;
+        hotel_max_available_rooms = 3;
         
     #else
+        // reading from std in. readArguments is used soleley for IP and port since it's mutual with the client.
+        // room number is read later
+
         // reading arguments (IP and port) from stdin
         Address address = readArguments(argc, argv); 
 
@@ -298,8 +308,8 @@ main(int argc, char** argv)
             exit(-1);
         }
         else {
-            hotel_total_rooms_g = atoi(argv[3]);
-            if (hotel_total_rooms_g <= 0){
+            hotel_max_available_rooms = atoi(argv[3]);
+            if (hotel_max_available_rooms <= 0){
                 printf("Usage: %s <ip> <port> <hotel rooms>\n", argv[0]);
                 printf("\x1b[31mhotel rooms has to be >= 1\x1b[0m\n");
                 exit(-1);
@@ -313,15 +323,10 @@ main(int argc, char** argv)
     // setup the server and return socket file descriptor.
     int sockfd = setupServer(&address);         // listening socket file descriptor
 
-    // initialized FSM
-    #if 0
-    for (int i = 0; i < NUM_THREADS; i++){
-        state[i] = INIT;
-    }
-    #endif
 
     // setup semaphores
     xp_sem_init(&lock_g, 0, 1);          // init to 1 since it's binary
+    xp_sem_init(&users_lock_g, 0, 1);     // init to 1 since it's binary
 
 
     char ip_client[INET_ADDRSTRLEN];    // no idea...
@@ -329,7 +334,9 @@ main(int argc, char** argv)
 
     // setup database
 
+    // mkdir .data folder if not existing. if exist it complains but proceeds... fine.
     system("mkdir .data");
+
     if (setupDatabase() != 0){
         perror_die("Database error.");
     }
@@ -361,8 +368,8 @@ main(int argc, char** argv)
 
 
 
-    while(1) {
-
+    while(1) 
+    {
         int thread_index;
 
         xp_sem_wait(&free_threads);             // wait until a thread is free
@@ -420,9 +427,16 @@ main(int argc, char** argv)
 
 
     return 0;
-}
 
-/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
+} // end main
+
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
+
+/********************************/
+/*                              */
+/*          functions           */
+/*                              */
+/********************************/
 
 
 
@@ -568,10 +582,14 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);
                 strcpy(user->username, command);
 
-                printf("usernameee %s\n", user->username);
+                #if VERBOSE_DEBUG
+                    printf("Username inserted: \033[1m%s\x1b[0m\n", user->username);
+                #endif
 
-
+                xp_sem_wait(&users_lock_g);
                 rv = usernameIsRegistered(user->username);
+                xp_sem_post(&users_lock_g);
+
                 if (rv == 0){
                     state = PICK_PASSWORD;
                     writeSocket(conn_sockfd, "Y");  // Y stands for: "username OK.\nChoose password: "
@@ -587,18 +605,24 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);
                 strcpy(user->actual_password, command);
 
-                printf("passworrrd %s\n", user->actual_password);
+                #if VERBOSE_DEBUG
+                    printf("Plain text password inserted: \033[1m%s\x1b[0m\n", user->actual_password);
+                #endif
 
                 state = SAVE_CREDENTIAL;
                 break;
 
             case SAVE_CREDENTIAL:
                 // password has to be hashed before storing it.
+                
+                xp_sem_wait(&users_lock_g);
                 #if ENCRYPT_PASSWORD 
                     updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
                 #else
                     updateUsersRecordFile(user->username, user->actual_password);
                 #endif
+                xp_sem_post(&users_lock_g);
+
                 writeSocket(conn_sockfd, "password OK.");
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged-in.");
 
@@ -612,7 +636,11 @@ dispatcher (int conn_sockfd, int thread_index)
 
             case CHECK_USERNAME:
                 readSocket(conn_sockfd, command);
+
+                xp_sem_wait(&users_lock_g);
                 rv = usernameIsRegistered(command);
+                xp_sem_post(&users_lock_g);
+
                 if (rv == 1){
                     state = CHECK_PASSWORD;
 
@@ -635,12 +663,18 @@ dispatcher (int conn_sockfd, int thread_index)
                 readSocket(conn_sockfd, command);
 
                 strcpy(user->actual_password, command);
-                printf("password received %s\n", user->actual_password);
 
-                printf("checking if %s %s is in user.txt\n", user->username, user->actual_password);
+                #if VERBOSE_DEBUG
+                    printf("Plain text password received \033[1m%s\x1b[0m\n", user->actual_password);
+                #endif
 
-            
+                #if DEBUG
+                    printf("checking if \033[1m%s\x1b[0m is in user.txt\n", user->username);
+                #endif
+
+                xp_sem_wait(&users_lock_g);
                 rv = checkIfPasswordMatches(user->username, user->actual_password);
+                xp_sem_post(&users_lock_g);
         
                 if (rv == 0){
                     state = GRANT_ACCESS;
@@ -700,8 +734,10 @@ dispatcher (int conn_sockfd, int thread_index)
             case CHECK_DATE_VALIDITY:
                 readSocket(conn_sockfd, command); // read date or reserve request
 
+
+                // ! useless state: check date validity is performed on client side. 
                 strcpy(booking.date, command);
-                rv = checkDateValidity();
+                rv = 0; // formerly   rv = checkDateValidity();
                 if (rv == 0){
                     state = CHECK_AVAILABILITY;
                 }
@@ -714,7 +750,7 @@ dispatcher (int conn_sockfd, int thread_index)
             // check data validity and availability
             case CHECK_AVAILABILITY:
 
-                if (strcmp(assignRoom(booking.date), "ERR") != 0){
+                if (strcmp(assignRoom(booking.date), "FULL") != 0){
                     state = RESERVE_CONFIRMATION;
                 }
                 else {
@@ -744,14 +780,21 @@ dispatcher (int conn_sockfd, int thread_index)
                 
                 strcpy(reservation_response, fetchUserReservations(user->username));
 
-                
+
                 if (strcmp(reservation_response, "") == 0){
                     writeSocket(conn_sockfd, "You have 0 active reservations.");
                 }
                 else {
+
+                    // can be moved to server side except reservation_response...
                     memset(view_response, '\0', sizeof(view_response));
-                    strcat(view_response, "Your active reservations:\n");
+                    strcat(view_response, "Your active reservations in 2020:\n");
+                    strcat(view_response, "+------+------+------+\n");
+                    strcat(view_response, "| date | room | code |\n");
+                    strcat(view_response, "+------+------+------+\n");
                     strcat(view_response, reservation_response);
+                    strcat(view_response, "\n");
+                    strcat(view_response, "+------+------+------+");
                     writeSocket(conn_sockfd, view_response);
                 }
                 
@@ -885,7 +928,7 @@ queryDatabase(const int query_id, const char* sql_command)
             break;
         
         case 1:
-            rc = sqlite3_exec(db, sql_command, busy_roomsCallback, 0, &err_msg);  
+            rc = sqlite3_exec(db, sql_command, busy_roomsCallback, 0, &err_msg);
             break;
 
         case 2:
@@ -893,8 +936,8 @@ queryDatabase(const int query_id, const char* sql_command)
             break;
     }
 
-    #if DEBUG
-        printf("Querying: %s\n", sql_command);
+    #if VERBOSE_DEBUG
+        printf("Querying:\n%s\n", sql_command);
     #endif
 
 
@@ -976,10 +1019,10 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
         for (int i = 0; i < argc; i++)
         {
             if (i==0){
-                snprintf(tmp_str, sizeof(tmp_str), "   %s/2020:  room ", argv[i]);
+                snprintf(tmp_str, sizeof(tmp_str), "  %s   ", argv[i]);
             }
             else if (i == 1){
-                snprintf(tmp_str, sizeof(tmp_str), "%s   res. code ", argv[i]);   
+                snprintf(tmp_str, sizeof(tmp_str), "%s     ", argv[i]);   
             }
             else if (i == 2){
                 snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
@@ -1001,9 +1044,7 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
 int 
 busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName) 
 {
-
     
-
     // rooms_busy_g is the payload "to be returned". 
     // rooms_busy_g is a global variable!
 
@@ -1012,8 +1053,10 @@ busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName)
     
     strcpy(rooms_busy_g, argv[0]);  // the variable to be returned is
                                     // only a number (str) and only a single argument, hence argv[0]
+
     return 0;
 }
+
 
 int 
 entryValidCallback(void* NotUsed, int argc, char** argv, char** azColName) 
@@ -1042,7 +1085,7 @@ setupDatabase()
                 `room`          TEXT        DEFAULT NULL,
                 `code`          TEXT        DEFAULT NULL,
 
-                UNIQUE(user, date, code)
+                UNIQUE(user, date, room)
             );
     );
 
@@ -1205,13 +1248,6 @@ checkIfPasswordMatches(char* username, char* actual_password)
 
 
 int 
-checkDateValidity()
-{
-    return 0;
-}
-
-
-int 
 saveReservation(User* u, Booking* b)
 {
 
@@ -1255,7 +1291,7 @@ saveReservation(User* u, Booking* b)
     return 0;
 }
 
-
+#if 0
 char* 
 assignRoom(char* date)
 {
@@ -1270,7 +1306,6 @@ assignRoom(char* date)
      */
 
 
-    
     char sql_command[1024];
     memset(sql_command, '\0', sizeof(sql_command));
 
@@ -1297,7 +1332,7 @@ assignRoom(char* date)
         rooms_busy = atoi(query->query_result);
         rooms_busy++;
 
-        if (rooms_busy > hotel_total_rooms_g){
+        if (rooms_busy > hotel_max_available_rooms){
             free(query);
             return "ERR";
         }
@@ -1309,6 +1344,121 @@ assignRoom(char* date)
             free(query);
             return rooms_busy_str;
 
+        }
+    }
+    else {
+        printf("%s\n", "Error querying the database!");
+        free(query);
+        return "";
+    }
+
+}
+#endif
+
+
+
+char* 
+assignRoom(char* date)
+{
+
+    char sql_command[512];
+    memset(sql_command, '\0', sizeof(sql_command));
+
+/*
+        -- how the query works:
+        --       1) first part selects a room stacked on top of the previous ones
+        --       2) second part looks for a room that has been reserved and then released
+        --          leaving a gap between two adjactent reservations
+        --       3) ifnull check is performed to make sure it doesn't return NULL 
+        --          which would make MIN fail.
+        --       4) the min of those two selects is choosen.
+        --
+        -- the query returns:   a valid room number (OK) or 999 (in that
+        --                      case I can tell there is no room available)
+
+        SELECT MAX
+        (
+            (
+                SELECT ifnull
+                (
+
+                    (
+                        SELECT   (room + 1)
+                        FROM Bookings
+                        WHERE (
+                            (date = '15/09') 
+                            AND 
+                            room+1 <= 4
+                            AND 
+                            (room + 1 NOT IN 
+                                (SELECT DISTINCT room FROM Bookings WHERE date = '15/09')
+                            )
+                        )
+                    ),
+                    1
+                )
+            )
+            ,
+            (    
+                SELECT ifnull
+                (
+                    (
+                        SELECT   (room -1)
+                        FROM Bookings
+                        WHERE (
+                            (date = '15/09') 
+                            AND 
+                            room-1 > 0
+                            AND 
+                            (room - 1 NOT IN 
+                                (SELECT DISTINCT room FROM Bookings WHERE date = '15/09')
+                            )
+                        )
+                    ),
+                    0  
+                )
+            )
+        )
+
+    */
+
+    char hotel_max_available_rooms_string[4];
+    sprintf(hotel_max_available_rooms_string, "%d", hotel_max_available_rooms);
+
+
+    // pushing THAT query into `sql_command` string.
+    strcat(sql_command, "SELECT MAX ( ( SELECT ifnull ( ( SELECT (room + 1) FROM Bookings WHERE ( (date = '");
+    strcat(sql_command, date);
+    strcat(sql_command, "') AND room+1 <= ");
+    strcat(sql_command, hotel_max_available_rooms_string);
+    strcat(sql_command, " AND (room + 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
+    strcat(sql_command, date);
+    strcat(sql_command, "') ) ) ), 1 ) ) , ( SELECT ifnull ( ( SELECT (room -1) FROM Bookings WHERE ( (date = '");
+    strcat(sql_command, date);
+    strcat(sql_command, "') AND room-1 > 0 AND (room - 1 NOT IN (SELECT DISTINCT room FROM Bookings WHERE date = '");
+    strcat(sql_command, date);
+    strcat(sql_command, "') ) ) ), 0 ) ) )");
+
+    printf("%s\n", sql_command);
+    
+
+    // Querying the database with the command just created
+    query_t* query = (query_t*) malloc(sizeof(query_t));
+    // memset(&query, 0, sizeof query );
+
+    query = queryDatabase(1, sql_command);
+
+
+    // Checking the results of the query
+    if (query->rv == 0){     // if return value is not 0, something went wrong.
+
+        if (atoi(query->query_result) == 0){   // if query result = 0
+            free(query);
+            return "ERR";
+        }
+        else {
+            free(query);
+            return query->query_result; // NUMBER as string
         }
     }
     else {

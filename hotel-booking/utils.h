@@ -1,10 +1,10 @@
 /**
- * @project:        hotel-booking
- * @file:           Address.h
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            Address.h
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Sat Jun 29 17:04:46 CEST 2019
- * @Description:    utility functions (mutual to both client and server)
+ * @date            Sat Jun 29 17:04:46 CEST 2019
+ * @brief           utility functions (mutual to both client and server)
  *
  */
 
@@ -17,12 +17,18 @@
 #include <arpa/inet.h>      // inet_addr
 #include <stdarg.h>
 #include <ctype.h>          // for lowercase check
+#include <termios.h>
+#include <regex.h>
 
 
 // config definition and declarations
+#include "xp_getpass.h"
+
 #include "config.h"
+#include "messages.h"
 
 #include "Address.h"
+
 
 /********************************/
 /*                              */
@@ -223,10 +229,24 @@ void        printServerFSMState(server_fsm_state_t* s, int* tid);
 void        printClientFSMState(client_fsm_state_t* s);
 
 
-
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        lower(char* str);
+
+/** @brief 
+ *  @param
+ *  @return 
+ */
 void        upper(char* str);
 
+
+/** @brief 
+ *  @param
+ *  @return 
+ */
+void        readPassword(char* password);
 
 /** @brief 
  *  @param
@@ -240,6 +260,13 @@ void        logging(const char* file, const int line, const char* fmt, ...);
  *  @return 
  */
 void        print(const char* file, const int line, const char* fmt, ...);
+
+/** @brief
+ *  @param
+ *  @param
+ *  @return
+ */
+int         regexMatch(const char* string, const char* pattern);
 
 /********************************/
 
@@ -453,45 +480,41 @@ printServerFSMState(server_fsm_state_t* s, int* tid)
 
     switch (*s)
     {
-        case INIT:                   rv = "INIT";                   break;
+        case INIT:                          rv = "INIT";                        break;
 
-        case HELP_UNLOGGED:          rv = "HELP_UNLOGGED";          break;
-        case HELP_LOGGED_IN:         rv = "HELP_LOGGED_IN";         break;
+        case HELP_UNLOGGED:                 rv = "HELP_UNLOGGED";               break;
+        case HELP_LOGGED_IN:                rv = "HELP_LOGGED_IN";              break;
 
-        case REGISTER:               rv = "REGISTER";               break;
-        case PICK_USERNAME:          rv = "PICK_USERNAME";          break;
-        case PICK_PASSWORD:          rv = "PICK_PASSWORD";          break;
+        case REGISTER:                      rv = "REGISTER";                    break;
+        case PICK_USERNAME:                 rv = "PICK_USERNAME";               break;
+        case PICK_PASSWORD:                 rv = "PICK_PASSWORD";               break;
 
-        case SAVE_CREDENTIAL:        rv = "SAVE_CREDENTIAL";        break;
-        case LOGIN:                  rv = "LOGIN";                  break;
+        case SAVE_CREDENTIAL:               rv = "SAVE_CREDENTIAL";             break;
+        case LOGIN:                         rv = "LOGIN";                       break;
 
-        case QUIT:                   rv = "QUIT";                   break;
+        case QUIT:                          rv = "QUIT";                        break;
         
-        case LOGIN_REQUEST:          rv = "LOGIN_REQUEST";          break;
+        case LOGIN_REQUEST:                 rv = "LOGIN_REQUEST";               break;
                 
-        case CHECK_USERNAME:         rv = "CHECK_USERNAME";         break;
+        case CHECK_USERNAME:                rv = "CHECK_USERNAME";              break;
                 
-        case CHECK_PASSWORD:         rv = "CHECK_PASSWORD";         break;
+        case CHECK_PASSWORD:                rv = "CHECK_PASSWORD";              break;
                 
-        case GRANT_ACCESS:           rv = "GRANT_ACCESS";           break;
+        case GRANT_ACCESS:                  rv = "GRANT_ACCESS";                break;
 
-        case CHECK_DATE_VALIDITY:    rv = "CHECK_DATE_VALIDITY";    break;
-        case CHECK_AVAILABILITY:     rv = "CHECK_AVAILABILITY";     break;
-        case RESERVE_CONFIRMATION:   rv = "RESERVE_CONFIRMATION";   break;
+        case CHECK_DATE_VALIDITY:           rv = "CHECK_DATE_VALIDITY";         break;
+        case CHECK_AVAILABILITY:            rv = "CHECK_AVAILABILITY";          break;
+        case RESERVE_CONFIRMATION:          rv = "RESERVE_CONFIRMATION";        break;
 
-        case VIEW:                   rv = "VIEW";                   break;
+        case VIEW:                          rv = "VIEW";                        break;
 
-        case RELEASE:                rv = "RELEASE";                break;
-        case REMOVE_ENTRIES_FROM_DB: rv = "REMOVE_ENTRIES_FROM_DB"; break;
-
-
+        case RELEASE:                       rv = "RELEASE";                     break;
+        case REMOVE_ENTRIES_FROM_DB:        rv = "REMOVE_ENTRIES_FROM_DB";      break;
     }
 
     printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, rv);
     return;
-
 }
-
 
 
 void 
@@ -501,48 +524,48 @@ printClientFSMState(client_fsm_state_t* s)
 
     switch (*s) 
     {
-        case CL_INIT:                       rv = "CL_INIT";                 break;
+        case CL_INIT:                       rv = "CL_INIT";                     break;
 
-        case SEND_HELP:                     rv = "SEND_HELP";               break;
-        case SEND_HELP_LOGGED:              rv = "SEND_HELP_LOGGED";        break;
+        case SEND_HELP:                     rv = "SEND_HELP";                   break;
+        case SEND_HELP_LOGGED:              rv = "SEND_HELP_LOGGED";            break;
 
-        case READ_HELP_RESP:                rv = "READ_HELP_RESP";          break;
-        case READ_HELP_LOGGED_RESP:         rv = "READ_HELP_LOGGED_RESP";   break;
+        case READ_HELP_RESP:                rv = "READ_HELP_RESP";              break;
+        case READ_HELP_LOGGED_RESP:         rv = "READ_HELP_LOGGED_RESP";       break;
 
-        case SEND_QUIT:                     rv = "SEND_QUIT";               break;
+        case SEND_QUIT:                     rv = "SEND_QUIT";                   break;
 
-        case SEND_REGISTER:                 rv = "SEND_REGISTER";           break;
-        case READ_REGISTER_RESP:            rv = "READ_REGISTER_RESP";      break;
+        case SEND_REGISTER:                 rv = "SEND_REGISTER";               break;
+        case READ_REGISTER_RESP:            rv = "READ_REGISTER_RESP";          break;
 
-        case SEND_USERNAME:                 rv = "SEND_USERNAME";           break;
-        case READ_USERNAME_RESP:            rv = "READ_USERNAME_RESP";      break;
+        case SEND_USERNAME:                 rv = "SEND_USERNAME";               break;
+        case READ_USERNAME_RESP:            rv = "READ_USERNAME_RESP";          break;
 
-        case SEND_PASSWORD:                 rv = "SEND_PASSWORD";           break;
-        case READ_PASSWORD_RESP:            rv = "READ_PASSWORD_RESP";      break;
+        case SEND_PASSWORD:                 rv = "SEND_PASSWORD";               break;
+        case READ_PASSWORD_RESP:            rv = "READ_PASSWORD_RESP";          break;
 
-        case CL_LOGIN:                      rv = "CL_LOGIN";                break;
+        case CL_LOGIN:                      rv = "CL_LOGIN";                    break;
 
-        case INVALID_UNLOGGED:              rv = "INVALID_UNLOGGED";        break;
-        case INVALID_LOGGED_IN:             rv = "INVALID_LOGGED_IN";       break;
+        case INVALID_UNLOGGED:              rv = "INVALID_UNLOGGED";            break;
+        case INVALID_LOGGED_IN:             rv = "INVALID_LOGGED_IN";           break;
 
-        case SEND_LOGOUT:                   rv = "SEND_LOGOUT";             break;
-        case SEND_LOGIN:                    rv = "SEND_LOGIN";              break;
-        case READ_LOGIN_RESP:               rv = "READ_LOGIN_RESP";         break;          
-        case SEND_LOGIN_USERNAME:           rv = "SEND_LOGIN_USERNAME";     break;       
-        case READ_LOGIN_USERNAME_RESP:      rv = "READ_LOGIN_USERNAME_RESP";break;  
-        case SEND_LOGIN_PASSWORD:           rv = "SEND_LOGIN_PASSWORD";     break;       
-        case READ_LOGIN_PASSWORD_RESP:      rv = "READ_LOGIN_PASSWORD_RESP";break;
+        case SEND_LOGOUT:                   rv = "SEND_LOGOUT";                 break;
+        case SEND_LOGIN:                    rv = "SEND_LOGIN";                  break;
+        case READ_LOGIN_RESP:               rv = "READ_LOGIN_RESP";             break;          
+        case SEND_LOGIN_USERNAME:           rv = "SEND_LOGIN_USERNAME";         break;       
+        case READ_LOGIN_USERNAME_RESP:      rv = "READ_LOGIN_USERNAME_RESP";    break;  
+        case SEND_LOGIN_PASSWORD:           rv = "SEND_LOGIN_PASSWORD";         break;       
+        case READ_LOGIN_PASSWORD_RESP:      rv = "READ_LOGIN_PASSWORD_RESP";    break;
 
-        case INVALID_DATE:                  rv = "INVALID_DATE";            break;
-        case SEND_RESERVE:                  rv = "SEND_RESERVE";            break;
-        case READ_RESERVE_RESP:             rv = "READ_RESERVE_RESP";       break;
+        case INVALID_DATE:                  rv = "INVALID_DATE";                break;
+        case SEND_RESERVE:                  rv = "SEND_RESERVE";                break;
+        case READ_RESERVE_RESP:             rv = "READ_RESERVE_RESP";           break;
 
-        case SEND_VIEW:                     rv = "SEND_VIEW";               break;
-        case READ_VIEW_RESP:                rv = "READ_VIEW_RESP";          break;
+        case SEND_VIEW:                     rv = "SEND_VIEW";                   break;
+        case READ_VIEW_RESP:                rv = "READ_VIEW_RESP";              break;
 
-        case INVALID_RELEASE:               rv = "INVALID_RELEASE";         break;
-        case SEND_RELEASE:                  rv = "SEND_RELEASE";            break;
-        case READ_RELEASE_RESP:             rv = "READ_RELEASE_RESP";       break;
+        case INVALID_RELEASE:               rv = "INVALID_RELEASE";             break;
+        case SEND_RELEASE:                  rv = "SEND_RELEASE";                break;
+        case READ_RELEASE_RESP:             rv = "READ_RELEASE_RESP";           break;
     }
 
     printf("\x1b[90mstate: %s\x1b[0m\n", rv);
@@ -566,6 +589,20 @@ void upper(char* str)
     }
 }
 
+
+
+
+void 
+readPassword(char* password)
+{
+    #if HIDE_PASSWORD
+        strcpy(password, xp_getpass(PASSWORD_PROMPT_MSG));
+    #else
+        printf(PASSWORD_PROMPT_MSG);
+        fgets(password, PASSWORD_MAX_LENGTH, stdin);    // `\n` is included in password thus I replace it with `\0`
+        password[strlen(password)-1] = '\0';
+    #endif
+}
 
 
 
@@ -595,6 +632,19 @@ print(const char* file, const int line, const char *fmt, ...)
         printf("%s\n", fmt);
     #endif
 }
+
+
+int 
+regexMatch(const char* string, const char* pattern)
+{
+    regex_t re;
+    if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) return 0;
+    int status = regexec(&re, string, 0, NULL, 0);
+    regfree(&re);
+    if (status != 0) return 0;
+    return 1;
+}
+
 
 
 

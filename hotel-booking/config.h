@@ -1,10 +1,10 @@
 /**
- * @project:        hotel-booking
- * @file:           config.h
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            config.h
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Mon Jul  1 12:43:37 CEST 2019
- * @Description:    
+ * @date            Mon Jul  1 12:43:37 CEST 2019
+ * @brief           
  *
  */
 
@@ -27,28 +27,30 @@
 ////////////////////////// customizable //////////////////////////
 
 
-#define NUM_THREADS             3           // # threads
-#define NUM_CONNECTION          10          // # queued connections
+#define NUM_THREADS             3       // # threads
+#define NUM_CONNECTION          10      // # queued connections
 
-#define MAX_BOOKINGS_PER_USER   5           // max number of bookings allowed for each user
+#define MAX_BOOKINGS_PER_USER   5       // max number of bookings allowed for each user
 
-#define PASSWORD_MAX_LENGTH     10
+#define PASSWORD_MAX_LENGTH     20
 
 
 
-#define DEBUG                   1           // debug mode: prints messages to the console
+#define DEBUG                   1       // debug mode: prints messages to the console
 #if DEBUG
-    #define VERBOSE_DEBUG       1           // even more debug messages
+    #define VERBOSE_DEBUG       1       // even more debug messages
 #endif
 
 #define HELP_MESSAGE_TYPE_1     1       // 1 for type 1, 2 for type 2
 #define SORT_VIEW_BY_DATE       1       // sort view response by date rather than by order of reservation
 
+#define HIDE_PASSWORD           1       // whether hiding or not the password when the user types it in.
+
+
 ////////////////////////// miscellaneous //////////////////////////
 
-#define BUFSIZE                 2048        // buffer size: maximum length of messages
-#define BACKLOG                 10          // listen() function parameter
-
+#define BUFSIZE                 2048    // buffer size: maximum length of messages
+#define BACKLOG                 10      // listen() function parameter
 
 
 
@@ -57,11 +59,10 @@
 
 
 
-#if 0
-#define GDB_MODE                1       // has to be 0 in production
+#define GDB_MODE                0       // has to be 0 in production
                                         // if not specified the compilation flag
                                         // -DGDB_MODE is required for it to be active.
-#endif
+
 
 
 

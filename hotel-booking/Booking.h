@@ -1,10 +1,10 @@
 /**
- * @project:        hotel-booking
- * @file:           Booking.h
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            Booking.h
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Mon Jul  1 12:43:37 CEST 2019
- * @Description:    stores booking data
+ * @date            Mon Jul  1 12:43:37 CEST 2019
+ * @brief           stores booking data
  *
  */
 

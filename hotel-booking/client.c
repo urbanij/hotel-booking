@@ -1,12 +1,12 @@
 /**
- * @project:        hotel-booking
- * @file:           client.c
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            client.c
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Mon Jul  1 12:43:37 CEST 2019
- * @Description:    client side, main
+ * @date            Mon Jul  1 12:43:37 CEST 2019
+ * @brief           client side, main
  *
- * @compilation:    `make client` or `gcc client.c -o client`
+ * *compilation     `make client` or `gcc client.c -o client`
  */
 
 /*      available commmands  
@@ -21,8 +21,6 @@
  *      release    [date] [room] [code]
  */
 
-
-/* POSIX libraries */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +45,7 @@
 #include "config.h"
 
 #include "utils.h"
+#include "messages.h"
 
 #include "Address.h"
 #include "Hotel.h"
@@ -54,56 +53,15 @@
 
 
 // regex patterns
-#define REGEX_ROOM          "^[1-9]{1,2}$"
-#define REGEX_CODE          "^([a-zA-Z0-9]{5})$"
-#define REGEX_DATE_FORMAT   "^[0-9]{2}/[0-9]{2}$"
-#define REGEX_DATE_VALID    "^(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])/02)|(29/02))$"
+#define REGEX_ROOM          "^[1-9]{1,3}$"          // room can be in range 1-999 
+#define REGEX_CODE          "^([a-zA-Z0-9]{5})$"    // 5 chars, alphanumeric
+
+// removed ^ from date regex pattern so regex accepts leading whitespace for it.
+#define REGEX_DATE_FORMAT   "[0-9]{2}/[0-9]{2}$"
+#define REGEX_DATE_VALID    "(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])/02)|(29/02))$"
                             /* inspired by [this answer](https://stackoverflow.com/a/21583100/6164816), I've then removed the year part and replaced "-" with "/".
                              * ^(((0[1-9]|[12]\d|3[01])\-(0[13578]|1[02])\-((19|[2-9]\d)\d{2}))|((0[1-9]|[12]\d|30)\-(0[13456789]|1[012])\-((19|[2-9]\d)\d{2}))|((0[1-9]|1\d|2[0-8])\-02\-((19|[2-9]\d)\d{2}))|(29\-02\-((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))))$
                              */
-
-
-#if HELP_MESSAGE_TYPE_1
-
-    // Only show the actual options
-
-    #define HELP_UNLOGGED_MESSAGE "Commands:\n\
-            \x1b[36m help     \x1b[0m --> show commands\n\
-            \x1b[36m register \x1b[0m --> register an account\n\
-            \x1b[36m login    \x1b[0m --> log into the system\n\
-            \x1b[36m quit     \x1b[0m --> log out and quit\n"
-    #define HELP_LOGGED_IN_MESSAGE "Commands:\n\
-            \x1b[36m help                         \x1b[0m --> show commands\n\
-            \x1b[36m reserve [date]               \x1b[0m --> book a room\n\
-            \x1b[36m release [date] [room] [code] \x1b[0m --> cancel a booking\n\
-            \x1b[36m view                         \x1b[0m --> show current bookings\n\
-            \x1b[36m logout                       \x1b[0m --> log out\n\
-            \x1b[36m quit                         \x1b[0m --> log out and quit\n"
-#else
-
-    // show ALL the options no matter what
-
-    #define HELP_UNLOGGED_MESSAGE "Commands:\n\
-            \x1b[36m help                         \x1b[0m --> show commands\n\
-            \x1b[36m register                     \x1b[0m --> register an account\n\
-            \x1b[36m login                        \x1b[0m --> log into the system\n\
-            \x1b[36m quit                         \x1b[0m --> quit\n\
-            \x1b[36m logout                       \x1b[0m --> log out                 (log-in required)\n\
-            \x1b[36m reserve [date]               \x1b[0m --> book a room             (log-in required)\n\
-            \x1b[36m release [date] [room] [code] \x1b[0m --> cancel a booking        (log-in required)\n\
-            \x1b[36m view                         \x1b[0m --> show current bookings   (log-in required)\n"
-    #define HELP_LOGGED_IN_MESSAGE "Commands:\n\
-            \x1b[36m help                         \x1b[0m --> show commands\n\
-            \x1b[36m reserve [date]               \x1b[0m --> book a room\n\
-            \x1b[36m release [date] [room] [code] \x1b[0m --> cancel a booking\n\
-            \x1b[36m view                         \x1b[0m --> show current bookings\n\
-            \x1b[36m logout                       \x1b[0m --> log out\n\
-            \x1b[36m quit                         \x1b[0m --> log out and quit\n\
-            \x1b[36m register                     \x1b[0m --> register an account     (you have to be logged-out)\n\
-            \x1b[36m login                        \x1b[0m --> log into the system     (you have to be logged-out)\n"
-#endif
-#define INVALID_COMMAND_MESSAGE "\x1b[31mInvalid command.\x1b[0m\n"
-
 
 
 /********************************/
@@ -113,36 +71,6 @@
 /********************************/
 
 static client_fsm_state_t  state;
-
-/********************************/
-/*                              */
-/*          protoypes           */
-/*                              */
-/********************************/
-
-
-
-
-
-/********************************/
-/*                              */
-/*          functions           */
-/*                              */
-/********************************/
-
-/** @brief
- *  @param
- *  @param
- *  @return
- */
-int checkPasswordValidity();
-
-/** @brief
- *  @param
- *  @param
- *  @return
- */
-int match(const char* string, const char* pattern);
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
@@ -154,7 +82,7 @@ main(int argc, char** argv)
     // clear terminal
     system("clear");
 
-    #ifdef GDB_MODE
+    #if GDB_MODE
         char port[5];
         printf("Insert port number: ");
         scanf("%s", port);
@@ -170,7 +98,7 @@ main(int argc, char** argv)
     #endif 
 
     repr_addr(&address);   // print address
-    printf("connected.");
+    printf("Connected.");
 
     // setup the client and return socket file descriptor.
     int sockfd = setupClient(&address);
@@ -186,7 +114,7 @@ main(int argc, char** argv)
     char response[BUFSIZE];
 
 
-    #if 0
+    #if 1
         char username[20];
         char password[PASSWORD_MAX_LENGTH];
     #else
@@ -206,32 +134,14 @@ main(int argc, char** argv)
     memset(booking, '\0', sizeof(Booking));
 
 
-    #define LOCK_INFINITE_CYCLE 0
-    #if LOCK_INFINITE_CYCLE
-        int temporary_cycle_counter = 0;
-    #endif
-
-
-    // char input_string[40];
-
-
     
 
-
-    state = CL_INIT;
-
-    int rv;
+    state = CL_INIT;    // FSM initialization
     
 
     while (1) 
     {
-        #if LOCK_INFINITE_CYCLE
-            temporary_cycle_counter ++;
-
-            if (temporary_cycle_counter > 20) break;    // prevent inf loop
-        #endif 
-
-
+        
         switch (state)
         {
             case CL_INIT:
@@ -368,8 +278,7 @@ main(int argc, char** argv)
 
             case SEND_PASSWORD:
 
-                // memset(password, '\0', sizeof(password));
-                password = getpass("Choose password: ");
+                readPassword(password);
 
                 // check password length. If it exceedes the space this causes 
                 // buffer overlow and crashes the server!
@@ -379,16 +288,9 @@ main(int argc, char** argv)
                     break;
                 }
 
-
                 writeSocket(sockfd, password);
-            
-                rv = checkPasswordValidity(); // 0 is OK, -1 invalid
-                if (rv == 0){
-                    state = READ_PASSWORD_RESP;
-                }
-                else {
-                    state = SEND_PASSWORD;
-                }
+
+                state = READ_PASSWORD_RESP;
                 break;
             
             case READ_PASSWORD_RESP:
@@ -439,14 +341,14 @@ main(int argc, char** argv)
                     state = SEND_LOGIN_PASSWORD;
                 }
                 else {
-                    printf("%s\n", "\x1b[31mUnregistered username.\x1b[0m\nGo ahead and register first.");
-                    //                ^--red  ^--bold
+                    printf(UNREGISTERED_USERNAME_ERR_MSG);
                     state = CL_INIT;
                 }
                 break;
 
             case SEND_LOGIN_PASSWORD:
-                password = getpass("Insert password: ");
+
+                readPassword(password);
 
                 /* Check password length. If password causes buffer overflow
                  * the server trims it and accept it. You don't want that. 
@@ -510,7 +412,7 @@ main(int argc, char** argv)
                 else {
                     // splitting input in its parts.
 
-                    memset(cmd,           '\0', sizeof(cmd)    );
+                    memset(cmd,           '\0', sizeof cmd);
                     memset(booking->date, '\0', sizeof booking->date);
                     memset(booking->room, '\0', sizeof booking->room);
                     memset(booking->code, '\0', sizeof booking->code);
@@ -521,8 +423,8 @@ main(int argc, char** argv)
 
 
                     if (strcmp(cmd, "reserve") == 0){
-                        if (match(booking->date, REGEX_DATE_FORMAT)){
-                            if (match(booking->date, REGEX_DATE_VALID)){
+                        if (regexMatch(booking->date, REGEX_DATE_FORMAT)){
+                            if (regexMatch(booking->date, REGEX_DATE_VALID)){
                                 state = SEND_RESERVE;        
                             } else {
                                 printf("\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n");
@@ -536,11 +438,11 @@ main(int argc, char** argv)
                     }
                     else if (strcmp(cmd, "release") == 0){
 
-                        if (match(booking->date, REGEX_DATE_FORMAT) && 
-                            match(booking->room, REGEX_ROOM) &&
-                            match(booking->code, REGEX_CODE))
+                        if (regexMatch(booking->date, REGEX_DATE_FORMAT) && 
+                            regexMatch(booking->room, REGEX_ROOM) &&
+                            regexMatch(booking->code, REGEX_CODE))
                         {
-                            if (match(booking->date, REGEX_DATE_VALID)){
+                            if (regexMatch(booking->date, REGEX_DATE_VALID)){
                                 state = SEND_RELEASE;
                             }
                             else {
@@ -598,6 +500,7 @@ main(int argc, char** argv)
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
 
+
                 if (strcmp(command, "BADDATE") == 0){
                     printf("%s\n", "Wrong date format");
                 }
@@ -611,7 +514,7 @@ main(int argc, char** argv)
                     readSocket(sockfd, booking->room);
                     readSocket(sockfd, booking->code);
 
-                    printf("\033[92mReservation successful:\x1b[0m room %s, code %s.\n", 
+                    printf("\033[92mReservation successful:\x1b[0m room %s, code %s\n", 
                         booking->room, booking->code
                     );
                 
@@ -668,7 +571,7 @@ main(int argc, char** argv)
 
 ABORT:
 
-    #if 1
+    #if 0
         free(username);
         free(password);
     #endif
@@ -682,29 +585,5 @@ ABORT:
 
     return 0;
 }
-
-
-
-/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
-
-
-int 
-match(const char* string, const char* pattern)
-{
-    regex_t re;
-    if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) return 0;
-    int status = regexec(&re, string, 0, NULL, 0);
-    regfree(&re);
-    if (status != 0) return 0;
-    return 1;
-}
-
-
-int 
-checkPasswordValidity(){
-    /*  */
-    return 0;
-}
-
 
 

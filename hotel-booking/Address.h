@@ -1,10 +1,10 @@
 /**
- * @project:        hotel-booking
- * @file:           Address.h
- * @author(s):      Francesco Urbani <https://urbanij.github.io/>
+ * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @file            Address.h
+ * @author          Francesco Urbani <https://urbanij.github.io/>
  *
- * @date:           Mon Jul  1 12:43:37 CEST 2019
- * @Description:    represents ip and port
+ * @date            Mon Jul  1 12:43:37 CEST 2019
+ * @brief           represents ip and port
  *
  */
 

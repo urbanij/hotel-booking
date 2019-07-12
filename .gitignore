@@ -11,6 +11,9 @@ server
 # objects
 *.o
 
+#doxy files
+doxygen
+
 # local storage
 users.txt
 *.db
