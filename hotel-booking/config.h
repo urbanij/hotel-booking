@@ -43,7 +43,7 @@
 #define SORT_VIEW_BY_DATE       1       // sort view response by date rather than by order of reservation
 
 
-#define HIDE_PASSWORD           0       // whether hiding or not the password when the user types it in.
+#define HIDE_PASSWORD           1       // whether hiding or not the password when the user types it in.
 
 
 

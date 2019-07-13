@@ -22,7 +22,7 @@
 
 
 // config definition and declarations
-
+#include "xp_getpass.h"
 #include "config.h"
 #include "messages.h"
 
@@ -593,9 +593,7 @@ void
 readPassword(char* password)
 {
     #if HIDE_PASSWORD
-        // strcpy(password, xp_getpass(PASSWORD_PROMPT_MSG));
-
-        getpass(PASSWORD_PROMPT_MSG);
+        strcpy(password, xp_getpass(PASSWORD_PROMPT_MSG));
     #else
         printf(PASSWORD_PROMPT_MSG);
         fgets(password, PASSWORD_MAX_LENGTH, stdin);    // `\n` is included in password thus I replace it with `\0`

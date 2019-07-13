@@ -1200,11 +1200,33 @@ encryptPassword(char* password)
     
     char salt[2];           // salt
 
-    makeSalt(salt);         // making salt
+
+
+    /* generating salt here:
+     * the function makeSalt causes a random seg fault to occur:
+     * when a non-alphabetic character is generated such as '<', 
+     * the function crypt does not know how to handle it and 
+     * random crash occurs.
+     * The way i generate the salt instead is by using generateRandomString function
+     * which I would have written regardless for generating the random reservation code.
+     */
+    
+    #if 0
+        makeSalt(salt);       <-- DO NOT USE IT
+    #else
+        generateRandomString(salt, 3);
+        
+        #if VERBOSE_DEBUG
+            printf("Salt: %c%c\n", salt[0], salt[1]);
+        #endif
+    
+    #endif
+    
+
 
     // copy encrypted password to res and return it.
-    #if 0
-        // strncpy(res, crypt(password, salt), sizeof(res)); 
+    #if 1
+        strncpy(res, crypt(password, salt), sizeof(res)); 
     #else
         memset(res, '\0', sizeof(res));
         strcpy(res, crypt(password, salt)); 
@@ -1217,7 +1239,7 @@ encryptPassword(char* password)
 
 
 
-
+#if 0
 void 
 makeSalt(char* salt) 
 {
@@ -1239,6 +1261,7 @@ makeSalt(char* salt)
         printf("Salt: %c%c\n", salt[0], salt[1]);
     #endif
 }
+#endif
 
     
 
@@ -1285,7 +1308,7 @@ checkIfPasswordMatches(User* user)
 
             
             // copy encrypted password to res and return it.
-            #if 0
+            #if 1
                 strncpy(res, crypt(user->actual_password, salt), sizeof(res)); 
             #else
                 memset(res, '\0', sizeof(res));
@@ -1505,6 +1528,10 @@ generateRandomString(char* str, size_t size)
     const char charset[] =  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
                             "0123456789";
+
+    // init random number generator
+    srand(time(NULL));
+    
 
     if (size) {
         --size;
