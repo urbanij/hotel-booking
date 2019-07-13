@@ -62,6 +62,7 @@ doxy:
 
 clean:
 	rm -rf *.dSYM 	# gdb
+	rm -f core
 	rm -f client_* 
 	rm -f server_*
 	rm -f *.o

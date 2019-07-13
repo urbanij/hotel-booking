@@ -778,6 +778,9 @@ dispatcher (int conn_sockfd, int thread_index)
                 
                 // strcpy(booking.code, generateRandomString());
                 generateRandomString(booking.code, RESERVATION_CODE_LENGTH);
+                // make sure the code is all uppercase
+                upper(booking.code);
+
 
                 saveReservation(user, &booking);
 
@@ -1160,7 +1163,7 @@ int
 updateUsersRecordFile(char* username, char* encrypted_password)
 {
     // buffer (will) store the line to be appended to the file.
-    char buffer[50];
+    char buffer[USERNAME_MAX_LENGTH + PASSWORD_MAX_LENGTH + 2];
     memset(buffer, '\0', sizeof(buffer));
 
     // creating the "payload"
@@ -1173,7 +1176,7 @@ updateUsersRecordFile(char* username, char* encrypted_password)
 
     FILE* users_file;
     users_file = fopen(USER_FILE, "a+");
-    if(users_file == NULL) {
+    if (users_file == NULL) {
         perror_die("fopen()");
     }
 
@@ -1200,11 +1203,19 @@ encryptPassword(char* password)
     makeSalt(salt);         // making salt
 
     // copy encrypted password to res and return it.
-    strncpy(res, crypt(password, salt), sizeof(res)); 
-    //             ^--- CRYPT(3)    BSD Library Functions Manual
+    #if 0
+        // strncpy(res, crypt(password, salt), sizeof(res)); 
+    #else
+        memset(res, '\0', sizeof(res));
+        strcpy(res, crypt(password, salt)); 
+        //             ^--- CRYPT(3)    BSD Library Functions Manual
+    #endif
 
     return res;
 }
+
+
+
 
 
 void 
@@ -1272,8 +1283,15 @@ checkIfPasswordMatches(User* user)
             salt[0] = stored_enc_psswd[0];
             salt[1] = stored_enc_psswd[1];
 
-            // encrypt the password given by the user with THAT salt
-            strncpy(res, crypt(user->actual_password, salt), sizeof(res));
+            
+            // copy encrypted password to res and return it.
+            #if 0
+                strncpy(res, crypt(user->actual_password, salt), sizeof(res)); 
+            #else
+                memset(res, '\0', sizeof(res));
+                strcpy(res, crypt(user->actual_password, salt)); 
+            #endif
+            
         #else
             strcpy(res, user->actual_password);
         
@@ -1484,7 +1502,9 @@ void
 generateRandomString(char* str, size_t size)
 {
 
-    const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const char charset[] =  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                            "abcdefghijklmnopqrstuvwxyz"
+                            "0123456789";
 
     if (size) {
         --size;
