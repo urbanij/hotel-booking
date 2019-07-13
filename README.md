@@ -25,7 +25,7 @@ make
 where:<br>
 `127.0.0.1` is the IP address (in this case _localhost_),<br> 
 `8888` is the port number and <br>
-`5` the total number of room in the hotel.<br>
+`5` the initial total number of available room in the hotel.<br>
 
 
 #### running with gdb debugger

@@ -53,6 +53,15 @@
 
 
 // regex patterns
+#define REGEX_HELP          "help"
+#define REGEX_LOGIN         "login"
+#define REGEX_REGISTER      "register"
+#define REGEX_VIEW          "view"
+#define REGEX_QUIT          "quit"
+#define REGEX_LOGOUT        "logout"
+#define REGEX_RESERVE       "reserve"
+#define REGEX_RELEASE       "release"
+
 #define REGEX_ROOM          "^[1-9]{1,3}$"          // room can be in range 1-999 
 #define REGEX_CODE          "^([a-zA-Z0-9]{5})$"    // 5 chars, alphanumeric
 
@@ -64,6 +73,8 @@
                              */
 
 
+
+
 /********************************/
 /*                              */
 /*          global var          */
@@ -73,6 +84,9 @@
 static client_fsm_state_t  state;
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
+
+void alarmHandler();
+
 
 
 int 
@@ -98,10 +112,13 @@ main(int argc, char** argv)
     #endif 
 
     repr_addr(&address);   // print address
-    printf("Connected.");
+
+    
 
     // setup the client and return socket file descriptor.
     int sockfd = setupClient(&address);
+
+
 
     #ifdef MANAGE_CNTRL_C
         signal(SIGINT, closeConnection);
@@ -115,11 +132,11 @@ main(int argc, char** argv)
 
 
     #if 1
-        char username[20];
+        char username[USERNAME_MAX_LENGTH];
         char password[PASSWORD_MAX_LENGTH];
     #else
         // getpass() function seems to work only with dynamic strings
-        char* username = (char*) malloc(20 * sizeof(char));
+        char* username = (char*) malloc(USERNAME_MAX_LENGTH * sizeof(char));
         char* password = (char*) malloc(PASSWORD_MAX_LENGTH * sizeof(char));
     #endif
 
@@ -159,16 +176,16 @@ main(int argc, char** argv)
 
 
 
-                if      (strcmp(command, "help") == 0){
+                if      (regexMatch(command, REGEX_HELP)){
                     state = SEND_HELP;
                 }
-                else if (strcmp(command, "login") == 0){ 
+                else if (regexMatch(command, REGEX_LOGIN)){ 
                     state = SEND_LOGIN;
                 }
-                else if (strcmp(command, "register") == 0) {
+                else if (regexMatch(command, REGEX_REGISTER)) {
                     state = SEND_REGISTER;
                 }
-                else if (strcmp(command, "quit") == 0){
+                else if (regexMatch(command, REGEX_QUIT)){
                     state = SEND_QUIT;
                 }
                 else{
@@ -199,6 +216,11 @@ main(int argc, char** argv)
 
             case READ_HELP_RESP:
                 memset(response, '\0', BUFSIZE);
+
+                // alarm(2);
+                // signal(SIGALRM, alarmHandler);
+
+
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
                     printf("%s\n", HELP_UNLOGGED_MESSAGE);    
@@ -226,8 +248,6 @@ main(int argc, char** argv)
                 printf( "You quit the system.\n");
                 goto ABORT;
 
-                state = CL_INIT;   // you sure ?
-
             case SEND_REGISTER:
                 writeSocket(sockfd, "r");
             
@@ -243,7 +263,7 @@ main(int argc, char** argv)
 
             case SEND_USERNAME:
                 printf("Choose username: ");
-                fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
+                fgets(username, USERNAME_MAX_LENGTH, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
 
                 // convert to input to lower case (for easier later comparison)
@@ -321,7 +341,7 @@ main(int argc, char** argv)
 
             case SEND_LOGIN_USERNAME:
                 printf("Insert username: ");
-                fgets(username, 20, stdin);          // `\n` is included in username thus I replace it with `\0`
+                fgets(username, USERNAME_MAX_LENGTH, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
 
                 lower(username);
@@ -397,16 +417,16 @@ main(int argc, char** argv)
                 /////////////////////////////////////////////////
 
 
-                if      (strcmp(command, "help") == 0){
+                if      (regexMatch(command, REGEX_HELP)){
                     state = SEND_HELP_LOGGED;
                 }
-                else if (strcmp(command, "view") == 0) {
+                else if (regexMatch(command, REGEX_VIEW)) {
                     state = SEND_VIEW;  
                 }
-                else if (strcmp(command, "quit") == 0){
+                else if (regexMatch(command, REGEX_QUIT)){
                     state = SEND_QUIT;
                 }
-                else if (strcmp(command, "logout") == 0){
+                else if (regexMatch(command, REGEX_LOGOUT)){
                     state = SEND_LOGOUT;
                 }
                 else {
@@ -422,7 +442,7 @@ main(int argc, char** argv)
                     ); 
 
 
-                    if (strcmp(cmd, "reserve") == 0){
+                    if (regexMatch(cmd, REGEX_RESERVE)){
                         if (regexMatch(booking->date, REGEX_DATE_FORMAT)){
                             if (regexMatch(booking->date, REGEX_DATE_VALID)){
                                 state = SEND_RESERVE;        
@@ -436,7 +456,7 @@ main(int argc, char** argv)
                             state = INVALID_DATE;
                         }
                     }
-                    else if (strcmp(cmd, "release") == 0){
+                    else if (regexMatch(cmd, REGEX_RELEASE)){
 
                         if (regexMatch(booking->date, REGEX_DATE_FORMAT) && 
                             regexMatch(booking->room, REGEX_ROOM) &&
@@ -586,3 +606,9 @@ ABORT:
     return 0;
 }
 
+
+void 
+alarmHandler()
+{
+    printf("%s\n", "Server is busy.");
+}

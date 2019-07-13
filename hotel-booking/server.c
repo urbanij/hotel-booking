@@ -63,12 +63,7 @@
 #include "Hotel.h"
 #include "User.h"
 
-
-
-#define QUOTE(...) #__VA_ARGS__     // this define allowes me to avoid writing every 
-                                    // SQL command within quotes.
-                                    // https://stackoverflow.com/a/17996915/6164816
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /********************************/
 /*                              */
@@ -76,20 +71,28 @@
 /*                              */
 /********************************/
 
-
-/* from documentation: https://www.sqlite.org/threadsafe.html
- *  Single-thread   : 0     : all mutexes are disabled and SQLite is unsafe to use in more than a single thread at once.
- *  Serialized      : 1     : SQLite can be safely used by multiple threads with no restriction.
- *  Multi-thread    : 2     : SQLite can be safely used by multiple threads provided that no single database 
- *                            connection is used simultaneously in two or more threads
-
- * Setting SQL mode to Multi-thread. 
- * In this mode, SQLite can be safely used by multiple threads provided 
- * that no single database connection is used simultaneously in two or more threads.
- */
-#define SQLITE_THREADSAFE       2   // 1 is the default
+#define QUOTE(...)          #__VA_ARGS__     
+                /* this define allowes me to avoid writing every 
+                 * SQL command within quotes.
+                 * https://stackoverflow.com/a/17996915/6164816 
+                 */
 
 
+#define SQLITE_THREADSAFE   2   // 1 is default
+
+                /* from documentation: https://www.sqlite.org/threadsafe.html
+                 *  Single-thread   : 0     : all mutexes are disabled and SQLite is unsafe to use 
+                 *                            in more than a single thread at once.
+                 *  Serialized      : 1     : SQLite can be safely used by multiple threads with no restriction.
+                 *  Multi-thread    : 2     : SQLite can be safely used by multiple threads provided that no 
+                 *                            single database connection is used simultaneously in two or more threads
+                 *
+                 * Setting SQL mode to Multi-thread. 
+                 * In this mode, SQLite can be safely used by multiple threads provided 
+                 * that no single database connection is used simultaneously in two or more threads.
+                 */
+
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /********************************/
 /*                              */
@@ -127,18 +130,13 @@ static char         DATABASE[20];
 
 
 
-// ************************************************* //
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-
-
-/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
-
-/*                       __        __
- *     ____  _________  / /_____  / /___  ______  ___  _____
- *    / __ \/ ___/ __ \/ __/ __ \/ __/ / / / __ \/ _ \/ ___/
- *   / /_/ / /  / /_/ / /_/ /_/ / /_/ /_/ / /_/ /  __(__  )
- *  / .___/_/   \____/\__/\____/\__/\__, / .___/\___/____/
- * /_/                             /____/*/   
+/********************************/
+/*                              */
+/*      functions prototype     */
+/*                              */
+/********************************/
 
 
 /** @brief Thread body for the request handlers. 
@@ -195,7 +193,7 @@ void        makeSalt(char* salt);
  *  @param
  *  @return
  */
-int         checkIfPasswordMatches(char*, char*);
+int         checkIfPasswordMatches(User* user);
 
 
 /** @brief
@@ -254,8 +252,8 @@ int         setupDatabase();
 char*       assignRoom(char* date);
 
 /** @brief Generate random reservation code
- *  @param
- *  @param
+ *  @param str the random string generated
+ *  @param size the length of the random string to be generated
  *  @return Void
  */
 void        generateRandomString(char* str, size_t size);
@@ -265,7 +263,7 @@ void        generateRandomString(char* str, size_t size);
  *  @param username
  *  @return 
  */
-char*       fetchUserReservations(char* u);
+char*       fetchUserReservations(User* user);
 
 /** @brief 
  *
@@ -298,8 +296,20 @@ main(int argc, char** argv)
 
 
 
+    User fra = (User){
+        .username = "fra",
+        .actual_password = "france"
+    };
+    printf("%d\n", checkIfPasswordMatches(&fra));
+
+    // while(1);
+
+
+    
+
 
     int conn_sockfd;    // connected socket file descriptor
+
 
     #if GDB_MODE
         char port[5];
@@ -340,19 +350,19 @@ main(int argc, char** argv)
 
 
     // setup the server and return socket file descriptor.
-    int sockfd = setupServer(&address);         // listening socket file descriptor
+    int sockfd = setupServer(&address);     // listening socket file descriptor
 
 
-    // setup semaphores
-    xp_sem_init(&lock_g, 0, 1);          // init to 1 since it's binary
-    xp_sem_init(&users_lock_g, 0, 1);     // init to 1 since it's binary
+    // setup semaphores (mutexes actually)
+    xp_sem_init(&lock_g, 0, 1);             // init to 1 since it's binary
+    xp_sem_init(&users_lock_g, 0, 1);       // init to 1 since it's binary
 
 
-    char ip_client[INET_ADDRSTRLEN];    // no idea...
+    char ip_client[INET_ADDRSTRLEN];
     
 
     // setup database
-    char mkdir_command[12] = "mkdir ";
+    char mkdir_command[7+sizeof(DATA_FOLDER)] = "mkdir ";
     strcat(mkdir_command, DATA_FOLDER); // DATA_FOLDER set inside `config.h`
     system(mkdir_command);
 
@@ -361,7 +371,7 @@ main(int argc, char** argv)
         perror_die("Database error.");
     }
     #if DEBUG
-        printf("%s\n", "Database setup OK.");
+        printf("%s\n", "[+] Database setup OK.");
     #endif
 
 
@@ -418,7 +428,9 @@ main(int argc, char** argv)
     /* critical section */
         xp_sem_wait(&lock_g);
 
-        for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  //assegnazione del thread
+        for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
+            // thread assignment
+
             if (busy[thread_index] == 0) {
                 break;
             }
@@ -516,17 +528,22 @@ dispatcher (int conn_sockfd, int thread_index)
                             // `release` and `reserve` from the client.
 
 
-    /* creating dinamic variable to hold the value of the current state
-     * on the server-side FSM
-     */
 
-    // create pointer variable called `state_pointer`
-    server_fsm_state_t* state_pointer = (server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
 
-    // `state pointer` is not actually used throughout this function but its 
-    // value is dereferenced to the variable `state`.
-    // `state_pointer` is used again when freeing the memory at the end of this routine.
-    server_fsm_state_t state = *state_pointer;
+    // creating variable for holding FSM current state on server side.
+    #if 0
+        // create pointer variable called `state_pointer`
+        server_fsm_state_t* state_pointer = (server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
+
+        // `state pointer` is not actually used throughout this function but its 
+        // value is dereferenced to the variable `state`.
+        // `state_pointer` is used again when freeing the memory at the end of this routine.
+        server_fsm_state_t state = *state_pointer;
+    #else 
+
+        server_fsm_state_t state = INIT;//= *(server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
+
+    #endif
 
 
     // creating user "object"
@@ -550,9 +567,6 @@ dispatcher (int conn_sockfd, int thread_index)
     while (1) 
     {
     
-        // clean the pipes after receiveing each command.
-        memset(command, '\0', BUFSIZE);
-        
     
         // stores return value, used throughout the loop.
         int rv;
@@ -561,6 +575,7 @@ dispatcher (int conn_sockfd, int thread_index)
         switch (state)
         {
             case INIT:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
                 if      (strcmp(command, "h") == 0){
@@ -599,6 +614,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case PICK_USERNAME:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);
                 strcpy(user->username, command);
 
@@ -622,6 +638,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case PICK_PASSWORD:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);
                 strcpy(user->actual_password, command);
 
@@ -655,6 +672,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case CHECK_USERNAME:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);
 
                 xp_sem_wait(&users_lock_g);
@@ -680,6 +698,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case CHECK_PASSWORD:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);
 
                 strcpy(user->actual_password, command);
@@ -692,10 +711,12 @@ dispatcher (int conn_sockfd, int thread_index)
                     printf("checking if \033[1m%s\x1b[0m is in user.txt\n", user->username);
                 #endif
 
+
                 xp_sem_wait(&users_lock_g);
-                rv = checkIfPasswordMatches(user->username, user->actual_password);
+                rv = checkIfPasswordMatches(user);
                 xp_sem_post(&users_lock_g);
-        
+
+
                 if (rv == 0){
                     state = GRANT_ACCESS;
                 }
@@ -713,6 +734,7 @@ dispatcher (int conn_sockfd, int thread_index)
 
             case LOGIN:
                 
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
                 if      (strcmp(command, "hh") == 0){ 
@@ -752,6 +774,7 @@ dispatcher (int conn_sockfd, int thread_index)
 
             
             case CHECK_DATE_VALIDITY:
+                memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command); // read date or reserve request
 
 
@@ -798,7 +821,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 memset(reservation_response, '\0', sizeof(reservation_response));
                 memset(query_result_g, '\0', sizeof(query_result_g));
                 
-                strcpy(reservation_response, fetchUserReservations(user->username));
+                strcpy(reservation_response, fetchUserReservations(user));
 
 
                 if (strcmp(reservation_response, "") == 0){
@@ -808,13 +831,17 @@ dispatcher (int conn_sockfd, int thread_index)
 
                     // can be moved to server side except reservation_response...
                     memset(view_response, '\0', sizeof(view_response));
-                    strcat(view_response, "Your active reservations in 2020:\n");
+                    strcat(view_response, "Your active reservations in 2020");
+                    #if SORT_VIEW_BY_DATE
+                        strcat(view_response, " sorted by DATE");
+                    #else
+
+                    #endif
+                    strcat(view_response, ":\n");
                     strcat(view_response, "+------+------+------+\n");
                     strcat(view_response, "| date | room | code |\n");
                     strcat(view_response, "+------+------+------+\n");
                     strcat(view_response, reservation_response);
-                    strcat(view_response, "\n");
-                    strcat(view_response, "+------+------+------+");
                     writeSocket(conn_sockfd, view_response);
                 }
                 
@@ -851,32 +878,31 @@ dispatcher (int conn_sockfd, int thread_index)
 
                 break;
 
-            case REMOVE_ENTRIES_FROM_DB:
-                break;
-            
             case QUIT:
-                free(state_pointer);
+                // free( (server_fsm_state_t*) state );
                 
                 free(user);
     
                 
                 printf("%s\n", "quitting");     // continue here....
                 
-                goto ABORT; // yes i know it's bad practice but the label is 
-                            // just a few lines below and it's only used here (and in on the client counterpart)
-
-            
             default:
                 break;
 
         }
+
         
         printServerFSMState(&state, &thread_index);
-            
+        
+
+        // check whether the only coomand that would the program exit the while loop has arrived.
+        if (strcmp(command, "q") == 0){
+            return;
+        }
+
+    
     }
 
-ABORT:
-    return;
 }
 
 
@@ -895,7 +921,13 @@ commitToDatabase(const char* sql_command)
         sqlite3_close(db);
         return -1;
     }
-      
+    
+
+    #if VERBOSE_DEBUG
+        printf("Committing to database:\n%s\n", sql_command);
+    #endif
+
+
     rc = sqlite3_exec(db, sql_command, 0, 0, &err_msg);
     
     if (rc != SQLITE_OK ) {
@@ -924,7 +956,6 @@ queryDatabase(const int query_id, const char* sql_command)
     #endif
 
 
-
     sqlite3* db;
     char* err_msg = 0;
     
@@ -932,7 +963,7 @@ queryDatabase(const int query_id, const char* sql_command)
 
     
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "Cannot open database:\n%s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         
         query->rv = -1;
@@ -957,10 +988,8 @@ queryDatabase(const int query_id, const char* sql_command)
     }
 
     #if VERBOSE_DEBUG
-        printf("Querying:\n%s\n", sql_command);
+        printf("Querying from database:\n%s\n", sql_command);
     #endif
-
-
 
 
     if (rc != SQLITE_OK ) {
@@ -995,6 +1024,7 @@ queryDatabase(const int query_id, const char* sql_command)
             query->rv = 0;
             query->query_result = (void*) rooms_busy_g;
             break;
+        
         case 2:
             query->rv = 0;
             query->query_result = (void*) &entry_id_g;
@@ -1209,7 +1239,7 @@ makeSalt(char* salt)
     r = r % ('z' - '0');
     salt[1] = '0' + r;
     
-    #if 0
+    #if VERBOSE_DEBUG
         printf("Salt: %c%c\n", salt[0], salt[1]);
     #endif
 }
@@ -1217,11 +1247,11 @@ makeSalt(char* salt)
     
 
 int 
-checkIfPasswordMatches(char* username, char* actual_password) 
+checkIfPasswordMatches(User* user) 
 {
-    char stored_username[30];
-    char stored_enc_pass[30];
-    char line[50];
+    char stored_username[USERNAME_MAX_LENGTH];
+    char stored_enc_psswd[PASSWORD_MAX_LENGTH];
+    char line[USERNAME_MAX_LENGTH + PASSWORD_MAX_LENGTH + 2];
 
     #if ENCRYPT_PASSWORD 
         char salt[2];
@@ -1231,10 +1261,12 @@ checkIfPasswordMatches(char* username, char* actual_password)
 
     char res[512]; // result of decryption operation
 
+
+
     FILE* users_file;
 
-    users_file = fopen(USER_FILE, "r");
-    if(users_file == NULL) {
+    users_file = fopen(USER_FILE, "r");     // opening file in read mode
+    if (users_file == NULL) {
         perror("fopen(USER_FILE)");
         return -1;       // file is missing...
     }
@@ -1243,23 +1275,25 @@ checkIfPasswordMatches(char* username, char* actual_password)
     // Scroll through the lines of users_file
     while(fgets(line, sizeof(line), users_file)){
 
+
         // get username and password from line
-        sscanf(line, "%s %s", stored_username, stored_enc_pass);
+        sscanf(line, "%s %s", stored_username, stored_enc_psswd);
 
         #if ENCRYPT_PASSWORD 
             // retrieve salt
-            salt[0] = stored_enc_pass[0];
-            salt[1] = stored_enc_pass[1];
+            salt[0] = stored_enc_psswd[0];
+            salt[1] = stored_enc_psswd[1];
 
             // encrypt the password given by the user with THAT salt
-            strncpy(res, crypt(actual_password, salt), sizeof(res));
+
+            // THIS CRYPT MAKE UBUNTU CRASH                             <<<<---------------------
+            strncpy(res, crypt(user->actual_password, salt), sizeof(res));
         #else
-            strcpy(res, actual_password);
+            strcpy(res, user->actual_password);
         
         #endif
         // if username and password match, login is successful.
-        if (strcmp(username, stored_username) == 0 && 
-            strcmp(res, stored_enc_pass) == 0)
+        if (strcmp(user->username, stored_username) == 0 && strcmp(res, stored_enc_psswd) == 0)
             return 0;
     }
     return 1;
@@ -1287,9 +1321,12 @@ saveReservation(User* u, Booking* b)
 
     memset(sql_command, '\0', sizeof(sql_command));
 
+    // no SQL injection hazard, values are sanitized on client side.
     strcat(sql_command, "INSERT or IGNORE INTO Bookings(user, date, date_yyyymmdd, room, code) VALUES('");
+                            // "or IGNORE" is actually negligible since I'm sure the room differs from any other room
+                            // with the same user and date previously stored.
     strcat(sql_command, u->username);
-    strcat(sql_command, "', '");                    //         ^---- database table field names
+    strcat(sql_command, "', '");
     strcat(sql_command, b->date);
     strcat(sql_command, "', '");
     strcat(sql_command, date_yyyymmdd);
@@ -1299,16 +1336,10 @@ saveReservation(User* u, Booking* b)
     strcat(sql_command, b->code);
     strcat(sql_command, "');");
     
-    #if DEBUG
-        printf("%s\n", sql_command);
-    #endif
-    
+
     rv = commitToDatabase(sql_command);
 
-    if (rv != 0){
-        return -1;
-    }
-    return 0;
+    return rv;  // 0 is OK, -1 is not.
 }
 
 
@@ -1423,9 +1454,6 @@ assignRoom(char* date)
             strcat(sql_command, date);
             strcat(sql_command, "') ) ) ), 999 ) ) )");
 
-            printf("%s\n", sql_command);
-
-
             query = queryDatabase(1, sql_command);
 
             // Checking the results of the query
@@ -1433,9 +1461,11 @@ assignRoom(char* date)
 
                 if (atoi(query->query_result) == 999){
                     // hotel is full
+                    free(query);
                     return "FULL";
                 }
                 else {
+                    // free(query); ... to be done
                     return query->query_result; // NUMBER as string
                 }
             }
@@ -1478,7 +1508,7 @@ generateRandomString(char* str, size_t size)
 
 
 char* 
-fetchUserReservations(char* u)
+fetchUserReservations(User* user)
 {
     query_t* query = (query_t*) malloc(sizeof(query_t));
  
@@ -1486,7 +1516,7 @@ fetchUserReservations(char* u)
     memset(sql_command, '\0', sizeof(sql_command));
 
     strcat(sql_command, "SELECT date, room, code FROM Bookings WHERE user = '");
-    strcat(sql_command, u);
+    strcat(sql_command, user->username);
     #if SORT_VIEW_BY_DATE
         strcat(sql_command, "' ORDER BY date_yyyymmdd, room");
     #else
@@ -1569,10 +1599,6 @@ releaseReservation(User* user, Booking* booking)
             strcat(sql_command, "' and code = '");
             strcat(sql_command, booking->code);
             strcat(sql_command, "'");
-
-            #if DEBUG
-                printf("Deleting from DB: %s\n", sql_command);
-            #endif
 
             // freeing memory before returning
             free(query);

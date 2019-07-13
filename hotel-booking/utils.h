@@ -22,7 +22,6 @@
 
 
 // config definition and declarations
-#include "xp_getpass.h"
 
 #include "config.h"
 #include "messages.h"
@@ -391,7 +390,7 @@ setupServer(Address* address)
         exit(-1);
     }
     else {
-        printf("Socket successfully created..\n");
+        printf("[+] Socket successfully created..\n");
     }
     memset(&server_addr, '\0', sizeof(server_addr));
 
@@ -416,7 +415,7 @@ setupServer(Address* address)
         perror_die("Listen()");
     }
     else
-        printf("Server listening on port %d\n", address->port);
+        printf("[+] Server listening on port %d\n", address->port);
 
     return sockfd;
 }
@@ -443,7 +442,7 @@ setupClient(Address* address)
         exit(0);
     }
     else
-        printf("Socket successfully created..\n");
+        printf("[+] Socket successfully created..\n");
 
     // clean memory space of server_addr
     #if 0
@@ -464,7 +463,7 @@ setupClient(Address* address)
         perror_die("connect()");
     }
     else
-        printf("connection to the server..\n");
+        printf("[+] Connected to the server..\n");
 
 
     return sockfd;
@@ -596,7 +595,9 @@ void
 readPassword(char* password)
 {
     #if HIDE_PASSWORD
-        strcpy(password, xp_getpass(PASSWORD_PROMPT_MSG));
+        // strcpy(password, xp_getpass(PASSWORD_PROMPT_MSG));
+
+        getpass(PASSWORD_PROMPT_MSG);
     #else
         printf(PASSWORD_PROMPT_MSG);
         fgets(password, PASSWORD_MAX_LENGTH, stdin);    // `\n` is included in password thus I replace it with `\0`

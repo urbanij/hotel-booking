@@ -14,7 +14,7 @@
 
 // class
 typedef struct hotel {
-    int     total_rooms;
+    int     available_rooms;
     int     booked_rooms[12][31];   // rooms available for each day of the year
 } Hotel;
 
@@ -45,7 +45,7 @@ void initializeHotel(Hotel* h){
  * return 0 is booking is successful, otherwise -1
  */
 int bookRoom(Hotel* h, int day, int month){
-    if (h->booked_rooms[day][month] < h->total_rooms){
+    if (h->booked_rooms[day][month] < h->available_rooms){
         h->booked_rooms[day][month]++;
         return 0;   // success
     }
