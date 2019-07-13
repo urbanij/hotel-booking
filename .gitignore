@@ -11,6 +11,9 @@ server
 # gdb
 .gdb_history
 
+# core dump
+core
+
 # objects
 *.o
 

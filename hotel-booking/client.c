@@ -245,7 +245,7 @@ main(int argc, char** argv)
 
             case SEND_QUIT:
                 writeSocket(sockfd, "q");
-                printf( "You quit the system.\n");
+                printf("Quitting...\n");
                 goto ABORT;
 
             case SEND_REGISTER:

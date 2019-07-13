@@ -18,8 +18,6 @@
  * *compilation     `make server` or `gcc server.c -o server [-lcrypt -lpthread] -lsqlite3`
  *
  *
- * TODO:            
- *
  */
 
 // standard
@@ -29,7 +27,7 @@
 #include <unistd.h>
 
 // POSIX threading
-#include <pthread.h>
+#include <pthread.h>    // gcc requires -lpthread flag 
 #include "xp_sem.h"
 
 // networking
@@ -40,13 +38,12 @@
 
 // security
 #ifdef __linux__
-    #include <crypt.h>
-#else
-    // crypt() function is part of `unistd.h` on __APPLE__
+    #include <crypt.h>  // gcc requires -crypt flag 
+    // crypt() is part of `unistd.h` on __APPLE__
 #endif
 
 // miscellaneous
-#include <sqlite3.h>
+#include <sqlite3.h>    // gcc requires -lsqlite3 flag 
 
 
 /* user-defined headers */
@@ -295,19 +292,6 @@ main(int argc, char** argv)
 
 
 
-
-    User fra = (User){
-        .username = "fra",
-        .actual_password = "france"
-    };
-    printf("%d\n", checkIfPasswordMatches(&fra));
-
-    // while(1);
-
-
-    
-
-
     int conn_sockfd;    // connected socket file descriptor
 
 
@@ -356,6 +340,7 @@ main(int argc, char** argv)
     // setup semaphores (mutexes actually)
     xp_sem_init(&lock_g, 0, 1);             // init to 1 since it's binary
     xp_sem_init(&users_lock_g, 0, 1);       // init to 1 since it's binary
+    xp_sem_init(&free_threads, 0, NUM_THREADS);
 
 
     char ip_client[INET_ADDRSTRLEN];
@@ -366,7 +351,6 @@ main(int argc, char** argv)
     strcat(mkdir_command, DATA_FOLDER); // DATA_FOLDER set inside `config.h`
     system(mkdir_command);
 
-
     if (setupDatabase() != 0){
         perror_die("Database error.");
     }
@@ -375,10 +359,6 @@ main(int argc, char** argv)
     #endif
 
 
-    // initialize lock_g
-
-
-    xp_sem_init(&free_threads, 0, NUM_THREADS);
 
 
     // building pool
@@ -558,7 +538,7 @@ dispatcher (int conn_sockfd, int thread_index)
 
 
     // used when processing `view` request and send message back to client.
-    // good idea would be to use heap and realloc memory as it grows...
+    // ! good idea would be to use heap and realloc memory as it grows.
     char reservation_response[BUFSIZE];
     char view_response[BUFSIZE];
 
@@ -622,9 +602,7 @@ dispatcher (int conn_sockfd, int thread_index)
                     printf("Username inserted: \033[1m%s\x1b[0m\n", user->username);
                 #endif
 
-                xp_sem_wait(&users_lock_g);
                 rv = usernameIsRegistered(user->username);
-                xp_sem_post(&users_lock_g);
 
                 if (rv == 0){
                     state = PICK_PASSWORD;
@@ -650,15 +628,12 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case SAVE_CREDENTIAL:
-                // password has to be hashed before storing it.
                 
-                xp_sem_wait(&users_lock_g);
                 #if ENCRYPT_PASSWORD 
                     updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
                 #else
                     updateUsersRecordFile(user->username, user->actual_password);
                 #endif
-                xp_sem_post(&users_lock_g);
 
                 writeSocket(conn_sockfd, "password OK.");
                 writeSocket(conn_sockfd, "Successfully registerd, you are now logged-in.");
@@ -675,9 +650,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);
 
-                xp_sem_wait(&users_lock_g);
                 rv = usernameIsRegistered(command);
-                xp_sem_post(&users_lock_g);
 
                 if (rv == 1){
                     state = CHECK_PASSWORD;
@@ -712,9 +685,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 #endif
 
 
-                xp_sem_wait(&users_lock_g);
                 rv = checkIfPasswordMatches(user);
-                xp_sem_post(&users_lock_g);
 
 
                 if (rv == 0){
@@ -879,14 +850,11 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case QUIT:
-                // free( (server_fsm_state_t*) state );
+                strcpy(command, "abort");
                 
                 free(user);
     
-                
-                printf("%s\n", "quitting");     // continue here....
-                
-            default:
+                printf("THREAD #%d: quitting\n", thread_index);
                 break;
 
         }
@@ -896,7 +864,7 @@ dispatcher (int conn_sockfd, int thread_index)
         
 
         // check whether the only coomand that would the program exit the while loop has arrived.
-        if (strcmp(command, "q") == 0){
+        if (strcmp(command, "abort") == 0){
             return;
         }
 
@@ -1153,6 +1121,9 @@ usernameIsRegistered(char* u)
     char enc_pass[30];
     char line[50];
 
+    // locking shared resource
+    xp_sem_wait(&users_lock_g);
+
     FILE* users_file;
 
     users_file = fopen(USER_FILE, "r");
@@ -1168,9 +1139,18 @@ usernameIsRegistered(char* u)
         // matches `username` (i.e. username saved on the file in the server)
         if (strcmp(u, username) == 0){
             fclose(users_file);
+            
+            // unlocking shared resource before going returning to caller
+            xp_sem_post(&users_lock_g);
             return 1;   // found user in the file
         }
     }
+
+    fclose(users_file);
+
+    // unlocking shared resource before going returning to caller
+    xp_sem_post(&users_lock_g);
+    
     return 0;           // username `u` is new to the system, hence the registration can proceed.
 }
 
@@ -1179,12 +1159,6 @@ usernameIsRegistered(char* u)
 int 
 updateUsersRecordFile(char* username, char* encrypted_password)
 {
-    
-    FILE* users_file = fopen(USER_FILE, "a+");
-    if(users_file == NULL) {
-        perror_die("fopen()");
-    }
-
     // buffer (will) store the line to be appended to the file.
     char buffer[50];
     memset(buffer, '\0', sizeof(buffer));
@@ -1194,11 +1168,22 @@ updateUsersRecordFile(char* username, char* encrypted_password)
     strcat(buffer, " ");
     strcat(buffer, encrypted_password);
 
+    // protecting shared resource access with semaphore
+    xp_sem_wait(&users_lock_g);
+
+    FILE* users_file;
+    users_file = fopen(USER_FILE, "a+");
+    if(users_file == NULL) {
+        perror_die("fopen()");
+    }
+
     // add line
     fprintf(users_file, "%s\n", buffer);
 
     // close connection to file
     fclose(users_file);
+
+    xp_sem_post(&users_lock_g);
 
     return 0;
 }
@@ -1262,12 +1247,15 @@ checkIfPasswordMatches(User* user)
     char res[512]; // result of decryption operation
 
 
+    xp_sem_wait(&users_lock_g);
 
     FILE* users_file;
 
     users_file = fopen(USER_FILE, "r");     // opening file in read mode
     if (users_file == NULL) {
         perror("fopen(USER_FILE)");
+
+        xp_sem_post(&users_lock_g);
         return -1;       // file is missing...
     }
 
@@ -1285,17 +1273,21 @@ checkIfPasswordMatches(User* user)
             salt[1] = stored_enc_psswd[1];
 
             // encrypt the password given by the user with THAT salt
-
-            // THIS CRYPT MAKE UBUNTU CRASH                             <<<<---------------------
             strncpy(res, crypt(user->actual_password, salt), sizeof(res));
         #else
             strcpy(res, user->actual_password);
         
         #endif
         // if username and password match, login is successful.
-        if (strcmp(user->username, stored_username) == 0 && strcmp(res, stored_enc_psswd) == 0)
+        if (strcmp(user->username, stored_username) == 0 && strcmp(res, stored_enc_psswd) == 0){
+            fclose(users_file);
+            xp_sem_post(&users_lock_g);
             return 0;
+        }
     }
+
+    fclose(users_file);
+    xp_sem_post(&users_lock_g);
     return 1;
 
 }
@@ -1306,8 +1298,8 @@ saveReservation(User* u, Booking* b)
 {
 
     /* You may want to add a check to see whether the same 
-     * reservation is already stored, even though it's unlikely
-     * in a real scenario...
+     * reservation is already stored, even though it's higly unlikely
+     * given that the code is random.
      */
 
     int rv;
@@ -1566,17 +1558,9 @@ releaseReservation(User* user, Booking* booking)
 
     // allocating dynamic variable where the result of the query will be stored.
     query_t* query = (query_t*) malloc(sizeof(query_t));
-
-    // memset(query->query_result, '\0', sizeof(query->query_result));     // FIX this
-
-                    // debug at its finest here                        
-                    // printf("%lu\n", sizeof(query_t));
-                    // printf("%lu\n", sizeof(int));
-                    // printf("%lu\n", sizeof(void*));
-                    // printf("%lu\n", sizeof(char*));
-
     query = queryDatabase(2, sql_command);
     
+
     if (query->rv == 0){
         
         if ( *((int*) query->query_result) == 0){  //1 if in database, 0 otherwise.
@@ -1587,7 +1571,7 @@ releaseReservation(User* user, Booking* booking)
 
         else {
 
-            // prepare payload for wiping the entry from the table
+            // prepare payload for wiping that entry from the table
 
             memset(sql_command, '\0', sizeof(sql_command));
             strcat(sql_command, "DELETE FROM Bookings WHERE user = '");
@@ -1615,5 +1599,4 @@ releaseReservation(User* user, Booking* booking)
     }
 
 }
-
 

@@ -92,7 +92,6 @@ typedef enum {
 
     // RELEASE
     RELEASE,
-    REMOVE_ENTRIES_FROM_DB,
 
     // QUIT
     QUIT                    // closes connection with client
@@ -508,7 +507,6 @@ printServerFSMState(server_fsm_state_t* s, int* tid)
         case VIEW:                          rv = "VIEW";                        break;
 
         case RELEASE:                       rv = "RELEASE";                     break;
-        case REMOVE_ENTRIES_FROM_DB:        rv = "REMOVE_ENTRIES_FROM_DB";      break;
     }
 
     printf("\x1b[90mTHREAD #%d: state: %s\x1b[0m\n", *tid, rv);

@@ -9,7 +9,7 @@
 
 
 CC=gcc
-CFLAGS=-Wall
+CFLAGS=-Wall -g3
 
 HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h 
 
