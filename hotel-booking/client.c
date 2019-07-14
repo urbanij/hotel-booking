@@ -268,6 +268,12 @@ main(int argc, char** argv)
 
                 // convert to input to lower case (for easier later comparison)
                 lower(username);
+
+                if (strlen(username) < USERNAME_MIN_LENGTH || strlen(username) > USERNAME_MAX_LENGTH-1){
+                    printf("Sorry, username length needs to be [%d-%d]\n", USERNAME_MIN_LENGTH, USERNAME_MAX_LENGTH);
+                    state = SEND_USERNAME;
+                    break;
+                }
                 
                 writeSocket(sockfd, username); 
 
@@ -302,8 +308,8 @@ main(int argc, char** argv)
 
                 // check password length. If it exceedes the space this causes 
                 // buffer overlow and crashes the server!
-                if (strlen(password) < 4 || strlen(password) > PASSWORD_MAX_LENGTH-1){
-                    printf("Sorry, password length needs to be [4-%d]\n", PASSWORD_MAX_LENGTH);
+                if (strlen(password) < PASSWORD_MIN_LENGTH || strlen(password) > PASSWORD_MAX_LENGTH-1){
+                    printf("Sorry, password length needs to be [%d-%d]\n", PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH);
                     state = SEND_PASSWORD;
                     break;
                 }

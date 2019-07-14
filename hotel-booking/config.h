@@ -30,7 +30,9 @@
 #define MAX_BOOKINGS_PER_USER   5       // max number of bookings allowed for each user
 
 #define PASSWORD_MAX_LENGTH     32
+#define PASSWORD_MIN_LENGTH     4
 #define USERNAME_MAX_LENGTH     16
+#define USERNAME_MIN_LENGTH     2
 
 
 

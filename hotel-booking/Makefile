@@ -42,16 +42,16 @@ endif
 all: server client
 
 server.o: server.c $(HEADERS)
-	gcc -c $(CFLAGS) server.c -o server.o -g3 
+	gcc -c $(CFLAGS) server.c -o server.o -g3 -pedantic
 
 server: server.o
-	gcc $(CFLAGS) server.o -o server$(EXTENSION) $(LIBS) 
+	gcc $(CFLAGS) server.o -o server$(EXTENSION) $(LIBS) -pedantic 
 
 client.o: client.c $(HEADERS)
-	gcc -c $(CFLAGS) client.c -o client.o -g3
+	gcc -c $(CFLAGS) client.c -o client.o -g3 -pedantic
 
 client: client.o
-	gcc $(CFLAGS) client.o -o client$(EXTENSION)
+	gcc $(CFLAGS) client.o -o client$(EXTENSION) -pedantic
 
 
 

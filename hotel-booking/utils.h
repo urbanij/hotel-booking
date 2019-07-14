@@ -28,13 +28,7 @@
 
 #include "Address.h"
 
-
-/********************************/
-/*                              */
-/*         definitions          */
-/*                              */
-/********************************/
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /********************************/
 /*                              */
@@ -44,20 +38,18 @@
 
 
 typedef struct query {
-    int     rv;
-    void*   query_result;   // void* thus it can be casted to anything
+    int     rv;             // return value
+    void*   query_result;   // actual resutl of query,
+                            // void* so it can be casted to any type.
 } query_t;
 
 
-
-
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /**
  * main FSM states          
  */
 typedef enum {
-    // INIT
     INIT,                   // starting point of the program, waits for
                             // inbound commands to be dispatched to the
                             // next state.
@@ -80,7 +72,6 @@ typedef enum {
     CHECK_PASSWORD,
     GRANT_ACCESS,
     LOGIN,                  // the user is inside the system and can send commands that requires login
-
 
     // RESERVE
     CHECK_DATE_VALIDITY,
@@ -127,9 +118,6 @@ typedef enum {
     SEND_PASSWORD,
     READ_PASSWORD_RESP,
 
-
-
-
     // LOGOUT
     SEND_LOGOUT,
 
@@ -143,12 +131,10 @@ typedef enum {
     // CLIENT LOGIN STATE
     CL_LOGIN,
 
-
     // RESERVE
     INVALID_DATE,
     SEND_RESERVE,
     READ_RESERVE_RESP,
-
 
     // VIEW
     SEND_VIEW,
@@ -166,7 +152,7 @@ typedef enum {
 } client_fsm_state_t;
 
 
-
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 /********************************/
 /*                              */
@@ -246,19 +232,6 @@ void        upper(char* str);
  */
 void        readPassword(char* password);
 
-/** @brief 
- *  @param
- *  @return 
- */
-void        logging(const char* file, const int line, const char* fmt, ...);
-
-
-/** @brief 
- *  @param
- *  @return 
- */
-void        print(const char* file, const int line, const char* fmt, ...);
-
 /** @brief
  *  @param
  *  @param
@@ -266,8 +239,8 @@ void        print(const char* file, const int line, const char* fmt, ...);
  */
 int         regexMatch(const char* string, const char* pattern);
 
-/********************************/
 
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 void
@@ -602,43 +575,18 @@ readPassword(char* password)
 }
 
 
-
-void 
-logging(const char* file, const int line, const char *fmt, ...)
-{
-    /* doesn really work as exptected: cant pass args... */
-    va_list list;
-
-    va_start(list, fmt); 
-
-        printf(
-        "\x1b[90m%s:%d:\x1b[0m %s\n",
-        file, line, fmt);
-    
-    va_end(list);
-
-    
-}
-
-inline void 
-print(const char* file, const int line, const char *fmt, ...)
-{
-    #if DEBUG
-        logging(file, line, fmt);
-    #else
-        printf("%s\n", fmt);
-    #endif
-}
-
-
 int 
 regexMatch(const char* string, const char* pattern)
 {
     regex_t re;
-    if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) return 0;
+    if (regcomp(&re, pattern, REG_EXTENDED|REG_NOSUB) != 0) {
+        return 0;
+    }
     int status = regexec(&re, string, 0, NULL, 0);
     regfree(&re);
-    if (status != 0) return 0;
+    if (status != 0) {
+        return 0;
+    }
     return 1;
 }
 

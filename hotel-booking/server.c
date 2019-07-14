@@ -1223,15 +1223,9 @@ encryptPassword(char* password)
     #endif
     
 
-
     // copy encrypted password to res and return it.
-    #if 1
-        strncpy(res, crypt(password, salt), sizeof(res)); 
-    #else
-        memset(res, '\0', sizeof(res));
-        strcpy(res, crypt(password, salt)); 
-        //             ^--- CRYPT(3)    BSD Library Functions Manual
-    #endif
+    strncpy(res, crypt(password, salt), sizeof(res)); 
+    //             ^--- CRYPT(3)    BSD Library Functions Manual
 
     return res;
 }
