@@ -1,5 +1,5 @@
 /**
- * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @name            hotel-booking
  * @file            Address.h
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
@@ -23,11 +23,10 @@ typedef struct address {
 } Address;
 
 
-void repr_addr(Address* a);    // "member function of Address class"
 
 
+void repr_addr(Address* a);
 
-/********************************/
 
 
 void

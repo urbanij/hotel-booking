@@ -1,5 +1,5 @@
 /**
- * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @name            hotel-booking
  * @file            client.c
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
@@ -73,20 +73,7 @@
                              */
 
 
-
-
-/********************************/
-/*                              */
-/*          global var          */
-/*                              */
-/********************************/
-
-static client_fsm_state_t  state;
-
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
-
-void alarmHandler();
-
 
 
 int 
@@ -131,14 +118,9 @@ main(int argc, char** argv)
     char response[BUFSIZE];
 
 
-    #if 1
-        char username[USERNAME_MAX_LENGTH];
-        char password[PASSWORD_MAX_LENGTH];
-    #else
-        // getpass() function seems to work only with dynamic strings
-        char* username = (char*) malloc(USERNAME_MAX_LENGTH * sizeof(char));
-        char* password = (char*) malloc(PASSWORD_MAX_LENGTH * sizeof(char));
-    #endif
+    
+    char username[USERNAME_MAX_LENGTH];
+    char password[PASSWORD_MAX_LENGTH];
 
 
 
@@ -152,8 +134,12 @@ main(int argc, char** argv)
 
 
     
+    // FSM initialization
+    client_fsm_state_t state = CL_INIT;    
 
-    state = CL_INIT;    // FSM initialization
+
+    // show available commands even before starting off.
+    printf("%s\n", HELP_UNLOGGED_MESSAGE);    
     
 
     while (1) 
@@ -216,10 +202,6 @@ main(int argc, char** argv)
 
             case READ_HELP_RESP:
                 memset(response, '\0', BUFSIZE);
-
-                // alarm(2);
-                // signal(SIGALRM, alarmHandler);
-
 
                 readSocket(sockfd, response);
                 if (strcmp(response, "H") == 0){
@@ -579,14 +561,6 @@ main(int argc, char** argv)
                 state = CL_LOGIN;
 
                 break;
-
-
-            // there is no default, every state transition is defined.
-            #if 0
-            default:
-                state = CL_INIT;
-            #endif
-
             
         }
         
@@ -597,11 +571,7 @@ main(int argc, char** argv)
 
 ABORT:
 
-    #if 0
-        free(username);
-        free(password);
-    #endif
-
+    
 
     free(user);
     free(booking);
@@ -612,9 +582,3 @@ ABORT:
     return 0;
 }
 
-
-void 
-alarmHandler()
-{
-    printf("%s\n", "Server is busy.");
-}

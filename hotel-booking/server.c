@@ -1,5 +1,5 @@
 /**
- * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @name            hotel-booking
  * @file            server.c
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
@@ -69,25 +69,25 @@
 /********************************/
 
 #define QUOTE(...)          #__VA_ARGS__     
-                /* this define allowes me to avoid writing every 
-                 * SQL command within quotes.
-                 * https://stackoverflow.com/a/17996915/6164816 
-                 */
+        /* this define allowes me to avoid writing every 
+         * SQL command within quotes.
+         * https://stackoverflow.com/a/17996915/6164816 
+         */
 
 
-#define SQLITE_THREADSAFE   2   // 1 is default
+#define SQLITE_THREADSAFE   1   // 1 is the default 
 
-                /* from documentation: https://www.sqlite.org/threadsafe.html
-                 *  Single-thread   : 0     : all mutexes are disabled and SQLite is unsafe to use 
-                 *                            in more than a single thread at once.
-                 *  Serialized      : 1     : SQLite can be safely used by multiple threads with no restriction.
-                 *  Multi-thread    : 2     : SQLite can be safely used by multiple threads provided that no 
-                 *                            single database connection is used simultaneously in two or more threads
-                 *
-                 * Setting SQL mode to Multi-thread. 
-                 * In this mode, SQLite can be safely used by multiple threads provided 
-                 * that no single database connection is used simultaneously in two or more threads.
-                 */
+        /* from documentation: https://www.sqlite.org/threadsafe.html
+         *  Single-thread   : 0     : all mutexes are disabled and SQLite is unsafe to use 
+         *                            in more than a single thread at once.
+         *  Serialized      : 1     : SQLite can be safely used by multiple threads with no restriction.
+         *  Multi-thread    : 2     : SQLite can be safely used by multiple threads provided that no 
+         *                            single database connection is used simultaneously in two or more threads
+         *
+         * Setting SQL mode to Multi-thread. 
+         * In this mode, SQLite can be safely used by multiple threads provided 
+         * that no single database connection is used simultaneously in two or more threads.
+         */
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
@@ -111,7 +111,6 @@ static int          busy[NUM_THREADS];          // map of busy threads
 static int          tid[NUM_THREADS];           // array of pre-allocated thread IDs
 static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
 
-// static server_fsm_state_t  state[NUM_THREADS];         // FSM states
 
 
 static char         query_result_g[2048];
@@ -166,39 +165,34 @@ void        dispatcher(int sockfd, int thread_index);
 int         usernameIsRegistered(char* u);
 
 
-/** @brief
- *  @param
- *  @param
- *  @return
+/** @brief  Opens the file where the users are stored
+ *          and update it with the new data (parameter of fucntion)
+ *  @param  username new username to be added
+ *  @param  password new password to be added
+ *  @return 0 if ok; dies otherwise.
  */
-int         updateUsersRecordFile(char*, char*);
+int         updateUsersRecordFile(char* username, char* password);
 
-/** @brief Takes plain text password and return the encrypted version of it
+/** @brief  Takes plain text password and return the encrypted version of it
  *  @param password The plain text password
  *  @return encrypted password
  */
 char*       encryptPassword(char* password);
 
-/** @brief
- *  @param
- *  @param
- *  @return
- */
-void        makeSalt(char* salt);
 
-
-/** @brief
- *  @param
- *  @param
- *  @return
+/** @brief   `Opens users.txt` and checks whether password of user `user` matches.
+ *  @param    user
+ *  @return   0 : ok. 
+ *            -1: failure. 
+ *            1 : does not match.
  */
 int         checkIfPasswordMatches(User* user);
 
 
-/** @brief
- *  @param
- *  @param
- *  @return
+/** @brief  save user reservation to database
+ *  @param user
+ *  @param booking booking data
+ *  @return 
  */
 int         saveReservation(User* user, Booking* booking);
 
@@ -232,12 +226,12 @@ int         viewCallback(void* NotUsed, int argc, char** argv, char** azColName)
 int         busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
 
-/** @brief 
+/** @brief Used by queryDatabase()
  *  @param
  *  @param
  *  @return
  */
-int         entryValidCallback(void* NotUsed, int argc, char** argv, char** azColName);
+int         validEntryCallback(void* NotUsed, int argc, char** argv, char** azColName);
 
 /** @brief Initial database setup. Creates the table Booking.
  *  @return return value (0 OK; !0 not OK)
@@ -250,7 +244,7 @@ int         setupDatabase();
  */
 char*       assignRoom(char* date);
 
-/** @brief Generate random reservation code
+/** @brief Generate random string. Used both for CODE generatio and for salt generation
  *  @param str the random string generated
  *  @param size the length of the random string to be generated
  *  @return Void
@@ -264,11 +258,10 @@ void        generateRandomString(char* str, size_t size);
  */
 char*       fetchUserReservations(User* user);
 
-/** @brief 
- *
+/** @brief   release reservation and wipe related entry from databse.
  *  @param user
  *  @param booking
- *  @return 0 (succ) or -1 (fail)
+ *  @return 0 (succ) or -1 (fail).
  */
 int         releaseReservation(User* user, Booking* booking);
 
@@ -283,7 +276,7 @@ main(int argc, char** argv)
     system("clear");
 
     
-    // 
+    //
     strcat(USER_FILE, DATA_FOLDER);
     strcat(USER_FILE, "/");
     strcat(USER_FILE, USER_FILE_NAME);
@@ -349,7 +342,7 @@ main(int argc, char** argv)
     
 
     // setup database
-    char mkdir_command[7+sizeof(DATA_FOLDER)] = "mkdir ";
+    char mkdir_command[7 + sizeof(DATA_FOLDER)] = "mkdir ";
     strcat(mkdir_command, DATA_FOLDER); // DATA_FOLDER set inside `config.h`
     system(mkdir_command);
 
@@ -357,7 +350,7 @@ main(int argc, char** argv)
         perror_die("Database error.");
     }
     #if DEBUG
-        printf("%s\n", "[+] Database setup OK.");
+        printf(ANSI_COLOR_GREEN "[+] Database setup OK.\n" ANSI_COLOR_RESET );
     #endif
 
 
@@ -469,11 +462,11 @@ threadHandler(void* indx)
         xp_sem_wait(&evsem[thread_index]);
         printf ("Thread #%d took charge of a request\n", thread_index);
 
-    /* critical section */
+        /* critical section */
         xp_sem_wait(&lock_g);
         conn_sockfd = fds[thread_index];
         xp_sem_post(&lock_g);
-    /* end critical section */
+        /* end critical section */
 
 
         // keep reading messages from client until "quit" arrives.
@@ -483,13 +476,16 @@ threadHandler(void* indx)
         printf ("Thread #%d closed session, client disconnected.\n", thread_index);
 
 
+    
         // notifying the main thread that THIS thread is now free and can be assigned to new requests.
-    /* critical section */
+    
+        /* critical section */
         xp_sem_wait(&lock_g);
         busy[thread_index] = 0;
         xp_sem_post(&lock_g);
-    /* end critical section */
+        /* end critical section */
         
+    
         xp_sem_post(&free_threads);
 
     }
@@ -511,22 +507,10 @@ dispatcher (int conn_sockfd, int thread_index)
 
 
 
-
     // creating variable for holding FSM current state on server side.
-    #if 0
-        // create pointer variable called `state_pointer`
-        server_fsm_state_t* state_pointer = (server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
+    server_fsm_state_t state = INIT;
 
-        // `state pointer` is not actually used throughout this function but its 
-        // value is dereferenced to the variable `state`.
-        // `state_pointer` is used again when freeing the memory at the end of this routine.
-        server_fsm_state_t state = *state_pointer;
-    #else 
-
-        server_fsm_state_t state = INIT;//= *(server_fsm_state_t*) malloc(sizeof(server_fsm_state_t));
-
-    #endif
-
+    
 
     // creating user "object"
     User* user = (User*) malloc(sizeof(User));
@@ -837,10 +821,6 @@ dispatcher (int conn_sockfd, int thread_index)
                 upper(booking.code);
 
 
-                // printf("%s\n", booking.date);
-                // printf("%s\n", booking.room);
-                // printf("%s\n", booking.code);
-
                 rv = releaseReservation(user, &booking);
 
                 if (rv == 0){
@@ -923,10 +903,6 @@ queryDatabase(const int query_id, const char* sql_command)
 {
     
     query_t* query = (query_t*) malloc(sizeof(query_t)); // variable to be returned + its initialization
-    //<-- MEMSETTING QUERY HERE CAUSED SEVER SEG FAULT where I assign query->id in the swithc case down below.
-    #if 0
-    memset(query->query_result, '\0', sizeof(query->query_result));
-    #endif
 
 
     sqlite3* db;
@@ -956,7 +932,7 @@ queryDatabase(const int query_id, const char* sql_command)
             break;
 
         case 2:
-            rc = sqlite3_exec(db, sql_command, entryValidCallback, 0, &err_msg); 
+            rc = sqlite3_exec(db, sql_command, validEntryCallback, 0, &err_msg); 
             break;
     }
 
@@ -1004,9 +980,6 @@ queryDatabase(const int query_id, const char* sql_command)
             break;
     }
 
-    // printf("ddd %d\n", *(int*)(query->query_result));
-
-
     return query;
 }
 
@@ -1025,38 +998,28 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
     // clean payload right before filling if from scratch.
     // memset(query_result_g, '\0', sizeof(query_result_g));
 
-    #if 0
+    
+    char tmp_str[64];
+    memset(tmp_str, '\0', sizeof(tmp_str));
 
-        char tmp_str[40] = "";
 
-        snprintf(tmp_str, sizeof(tmp_str), "%s/2020, room %s, reserve code: %s", argv[2], argv[3], argv[4]);
-        
+    for (int i = 0; i < argc; i++)
+    {
+        if (i==0){
+            snprintf(tmp_str, sizeof(tmp_str), "  %s   ", argv[i]);
+        }
+        else if (i == 1){
+            snprintf(tmp_str, sizeof(tmp_str), "%s     ", argv[i]);   
+        }
+        else if (i == 2){
+            snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
+        }
         strcat(query_result_g, tmp_str);
 
-    #else
+    }
+    
+    strcat(query_result_g, "\n");
         
-        char tmp_str[64];
-        memset(tmp_str, '\0', sizeof(tmp_str));
-
-
-        for (int i = 0; i < argc; i++)
-        {
-            if (i==0){
-                snprintf(tmp_str, sizeof(tmp_str), "  %s   ", argv[i]);
-            }
-            else if (i == 1){
-                snprintf(tmp_str, sizeof(tmp_str), "%s     ", argv[i]);   
-            }
-            else if (i == 2){
-                snprintf(tmp_str, sizeof(tmp_str), "%s", argv[i]);   
-            }
-            strcat(query_result_g, tmp_str);
-
-        }
-        
-        strcat(query_result_g, "\n");
-        
-    #endif
 
     return 0;
 }
@@ -1082,7 +1045,7 @@ busy_roomsCallback(void* NotUsed, int argc, char** argv, char** azColName)
 
 
 int 
-entryValidCallback(void* NotUsed, int argc, char** argv, char** azColName) 
+validEntryCallback(void* NotUsed, int argc, char** argv, char** azColName) 
 {   
     entry_id_g = atoi(argv[0]);
 
@@ -1206,7 +1169,7 @@ encryptPassword(char* password)
 
 
     /* generating salt here:
-     * the function makeSalt causes a random seg fault to occur:
+     * the function makeSalt caused a random seg fault to occur:
      * when a non-alphabetic character is generated such as '<', 
      * the function crypt does not know how to handle it and 
      * random crash occurs.
@@ -1214,16 +1177,12 @@ encryptPassword(char* password)
      * which I would have written regardless for generating the random reservation code.
      */
     
-    #if 0
-        makeSalt(salt);       <-- DO NOT USE IT
-    #else
-        generateRandomString(salt, 3);
-        
-        #if VERBOSE_DEBUG
-            printf("Salt: %c%c\n", salt[0], salt[1]);
-        #endif
+    generateRandomString(salt, 3);  // 3:   2 for salt, 1 for '\0'.
     
+    #if VERBOSE_DEBUG
+        printf("Salt: %c%c\n", salt[0], salt[1]);
     #endif
+
     
 
     // copy encrypted password to res and return it.
@@ -1232,34 +1191,6 @@ encryptPassword(char* password)
 
     return res;
 }
-
-
-
-
-#if 0
-void 
-makeSalt(char* salt) 
-{
-    int r;  // temp variable
-
-    // init random number generator
-    srand(time(NULL));
-    
-    // make sure salt chars are actual characters, not than special ASCII symbols
-    r = rand();
-    r = r % ('z' - '0');
-    salt[0] = '0' + r;
-    
-    r = rand();
-    r = r % ('z' - '0');
-    salt[1] = '0' + r;
-    
-    #if VERBOSE_DEBUG
-        printf("Salt: %c%c\n", salt[0], salt[1]);
-    #endif
-}
-#endif
-
     
 
 int 
@@ -1277,7 +1208,7 @@ checkIfPasswordMatches(User* user)
 
     char res[512]; // result of decryption operation
 
-
+    // protecting shared resource with mutex semaphore
     xp_sem_wait(&users_lock_g);
 
     FILE* users_file;
@@ -1518,8 +1449,8 @@ assignRoom(char* date)
 
 
 
-void 
-generateRandomString(char* str, size_t size)
+void
+generateRandomString(char* str, size_t size)  // size_t: type able to represent the size of any object in bytes
 {
 
     const char charset[] =  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

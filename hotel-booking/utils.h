@@ -1,5 +1,5 @@
 /**
- * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @name            hotel-booking
  * @file            Address.h
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
@@ -46,6 +46,8 @@ typedef struct query {
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
+
+
 /**
  * main FSM states          
  */
@@ -60,7 +62,7 @@ typedef enum {
 
     
     // REGISTER
-    REGISTER,               // upon previous check, either registers the user into the db or gets back to INIT
+    REGISTER,
     PICK_USERNAME,
     PICK_PASSWORD,   
     
@@ -71,8 +73,10 @@ typedef enum {
     CHECK_USERNAME,
     CHECK_PASSWORD,
     GRANT_ACCESS,
+    
     LOGIN,                  // the user is inside the system and can send commands that requires login
 
+    
     // RESERVE
     CHECK_DATE_VALIDITY,
     CHECK_AVAILABILITY,
@@ -128,7 +132,8 @@ typedef enum {
     READ_LOGIN_USERNAME_RESP,  
     SEND_LOGIN_PASSWORD,       
     READ_LOGIN_PASSWORD_RESP,
-    // CLIENT LOGIN STATE
+    
+
     CL_LOGIN,
 
     // RESERVE
@@ -161,38 +166,40 @@ typedef enum {
 /********************************/
 
 
-/** @brief 
- *  @param msg perror message error
- *  @return 
+/** @brief notifies error and exits
+ *  @param perrror message
+ *  @return Void
  */
 void        perror_die(const char* msg);
 
-/** @brief 
+/** @brief  read stdin arguments and returns the IP and port (if any)
  *  @param   argc    number of stdin arguments
  *  @param   argv    array of strings passed from stdin
  *  @return          address type variable
  */
 Address     readArguments(int argc, char** argv);
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief   Handles outbound socket communication
+ *  @param   sockfs socket file descriptor
+ *  @param   msg    content to be written
+ *  @return  Void
  */
 void        writeSocket(int sockfd, char* msg);
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief   Handles inbound socket communication
+ *  @param   sockfd socket file descriptor
+ *  @param   msg message to be read
+ *  @return  Void
  */
 void        readSocket(int sockfd, char* msg);
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief  setup socket on server side
+ *  @param  IP and port 
+ *  @return rv whether operation finished successful or not
  */
 int         setupServer(Address* address);
 
-/** @brief 
+/** @brief  setup socket on client side
  *  @param
  *  @return 
  */
@@ -213,29 +220,29 @@ void        printServerFSMState(server_fsm_state_t* s, int* tid);
 void        printClientFSMState(client_fsm_state_t* s);
 
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief transform to lowercase 
+ *  @param str string to be transformed
+ *  @return Void
  */
 void        lower(char* str);
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief transform to uppercase 
+ *  @param str string to be transformed
+ *  @return Void
  */
 void        upper(char* str);
 
 
-/** @brief 
- *  @param
- *  @return 
+/** @brief read password from user input
+ *  @param password
+ *  @return Void
  */
 void        readPassword(char* password);
 
-/** @brief
- *  @param
- *  @param
- *  @return
+/** @brief checks whether string matches the pattern
+ *  @param string 
+ *  @param regex pattern
+ *  @return 1 if matches; 0 if not.
  */
 int         regexMatch(const char* string, const char* pattern);
 
@@ -362,7 +369,7 @@ setupServer(Address* address)
         exit(-1);
     }
     else {
-        printf("[+] Socket successfully created..\n");
+        printf(ANSI_COLOR_GREEN "[+] Socket successfully created.\n" ANSI_COLOR_RESET);
     }
     memset(&server_addr, '\0', sizeof(server_addr));
 
@@ -387,7 +394,7 @@ setupServer(Address* address)
         perror_die("Listen()");
     }
     else
-        printf("[+] Server listening on port %d\n", address->port);
+        printf(ANSI_COLOR_GREEN "[+] Server listening on port %d" ANSI_COLOR_RESET "\n", address->port);
 
     return sockfd;
 }
@@ -414,7 +421,7 @@ setupClient(Address* address)
         exit(0);
     }
     else
-        printf("[+] Socket successfully created..\n");
+        printf(ANSI_COLOR_GREEN "[+] Socket successfully created.\n" ANSI_COLOR_RESET);
 
     // clean memory space of server_addr
     #if 0
@@ -435,7 +442,7 @@ setupClient(Address* address)
         perror_die("connect()");
     }
     else
-        printf("[+] Connected to the server..\n");
+        printf(ANSI_COLOR_GREEN "[+] Connected to the server..\n" ANSI_COLOR_RESET);
 
 
     return sockfd;

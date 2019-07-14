@@ -1,5 +1,5 @@
 /**
- * @name            hotel-booking <https://github.com/urbanij/hotel-booking>
+ * @name            hotel-booking
  * @file            Hotel.h
  * @author          Francesco Urbani <https://urbanij.github.io/>
  *
@@ -12,22 +12,21 @@
 #define HOTEL_H
 
 
-// class
+
 typedef struct hotel {
     int     available_rooms;
     int     booked_rooms[12][31];   // rooms available for each day of the year
 } Hotel;
 
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
-void initializeHotel(Hotel* h);
-
-// methods declaration
-int bookRoom(Hotel* h, int day, int month);
-
+void    initializeHotel(Hotel* h);
+int     bookRoom(Hotel* h, int day, int month);
 
 
 
 
+/* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 
 // methods definitions

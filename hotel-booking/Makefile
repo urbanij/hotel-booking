@@ -9,9 +9,10 @@
 
 
 CC=gcc
+
 CFLAGS=-Wall -g3
 
-HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h 
+HEADERS=utils.h config.h Address.h Booking.h Hotel.h User.h xp_getpass.h xp_sem.h messages.h
 
 
 # custom bin extension based on platform
@@ -41,17 +42,11 @@ endif
 
 all: server client
 
-server.o: server.c $(HEADERS)
-	gcc -c $(CFLAGS) server.c -o server.o -g3 -pedantic
+server: server.c $(HEADERS)
+	gcc $(CFLAGS) server.c -o server$(EXTENSION) $(LIBS)
 
-server: server.o
-	gcc $(CFLAGS) server.o -o server$(EXTENSION) $(LIBS) -pedantic 
-
-client.o: client.c $(HEADERS)
-	gcc -c $(CFLAGS) client.c -o client.o -g3 -pedantic
-
-client: client.o
-	gcc $(CFLAGS) client.o -o client$(EXTENSION) -pedantic
+client: client.c $(HEADERS)
+	gcc $(CFLAGS) client.c -o client$(EXTENSION) 
 
 
 
@@ -71,4 +66,3 @@ clean:
 wipe:	# wipes out database and users.txt 
 	rm -rf .data 
 	
-
