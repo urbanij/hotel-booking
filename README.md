@@ -35,6 +35,13 @@ make sure to compile with `-DGDB_MODE`, then run `gdb ./server`.<br>
 Inside gdb type `r` to run and you're good to go.<br> For an easier debugging experience [this](https://github.com/cyrus-and/gdb-dashboard) is recommended.
 
 
+
+### demo:
+
+[![demo](https://i.imgur.com/9VQdDrU.png)](https://youtu.be/2S_IpDbXQF8)
+
+
+
 <br>
 
 [Francesco Urbani](https://urbanij.github.io/)
