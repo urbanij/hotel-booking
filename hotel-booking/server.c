@@ -122,8 +122,10 @@ static int          entry_id_g;
 static int          hotel_max_available_rooms;
 
 
-static char         USER_FILE[20];
-static char         DATABASE[20];
+
+                                                // folder path + file name saved in `config.h` merge
+static char         USER_FILE[30];              // user file path
+static char         DATABASE[30];               // database  path 
 
 
 
@@ -281,11 +283,11 @@ main(int argc, char** argv)
     system("clear");
 
     
+    // 
     strcat(USER_FILE, DATA_FOLDER);
     strcat(USER_FILE, "/");
     strcat(USER_FILE, USER_FILE_NAME);
 
-    
     strcat(DATABASE, DATA_FOLDER);
     strcat(DATABASE, "/");
     strcat(DATABASE, DATABASE_NAME);
@@ -337,7 +339,7 @@ main(int argc, char** argv)
     int sockfd = setupServer(&address);     // listening socket file descriptor
 
 
-    // setup semaphores (mutexes actually)
+    // setup semaphores
     xp_sem_init(&lock_g, 0, 1);             // init to 1 since it's binary
     xp_sem_init(&users_lock_g, 0, 1);       // init to 1 since it's binary
     xp_sem_init(&free_threads, 0, NUM_THREADS);
@@ -1131,6 +1133,7 @@ usernameIsRegistered(char* u)
 
     users_file = fopen(USER_FILE, "r");
     if(users_file == NULL) {
+        xp_sem_post(&users_lock_g);
         return 0;       // no file exists, hence no username exists, gr8
     }
 
