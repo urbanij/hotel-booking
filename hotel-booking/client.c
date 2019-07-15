@@ -48,6 +48,7 @@
 #include "messages.h"
 
 #include "Address.h"
+#include "Booking.h"
 #include "Hotel.h"
 #include "User.h"
 
@@ -228,7 +229,11 @@ main(int argc, char** argv)
             case SEND_QUIT:
                 writeSocket(sockfd, QUIT_MSG);
                 printf("Quitting...\n");
-                goto ABORT;
+                
+
+                memset(command, '\0', sizeof(command));
+                strcpy(command, "abort");
+                break;
 
             case SEND_REGISTER:
                 writeSocket(sockfd, REGISTER_MSG);
@@ -558,23 +563,24 @@ main(int argc, char** argv)
 
                 break;
             
-        }
+        } // end switch
         
         printClientFSMState(&state);
 
-    }
+        // checking the only condition that would let me quit the infinite loop.
+        if (strcmp(command, "abort") == 0){ 
+            break;
+        }
 
-
-ABORT:
+    } // end while
 
     
-
     free(user);
     free(booking);
-
 
     close(sockfd);
 
     return 0;
 }
+
 

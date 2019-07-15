@@ -377,6 +377,7 @@ main(int argc, char** argv)
     {
         int thread_index;
 
+
         xp_sem_wait(&free_threads);             // wait until a thread is free
 
         struct sockaddr_in client_addr;         // client address
@@ -398,7 +399,6 @@ main(int argc, char** argv)
 
 
         // looking for free thread
-
 
         /* critical section */
         pthread_mutex_lock(&lock_g);
@@ -460,31 +460,33 @@ threadHandler(void* indx)
         
         // waiting for a request assigned by the main thread
         xp_sem_wait(&evsem[thread_index]);
-            printf ("Thread #%d took charge of a request\n", thread_index);
-
-            /* critical section */
-            pthread_mutex_lock(&lock_g);
-                conn_sockfd = fds[thread_index];
-            pthread_mutex_unlock(&lock_g);
-            /* end critical section */
-
-
-            // keep reading messages from client until "quit" arrives.
-            
-            // serving the request (dispatched)
-            dispatcher(conn_sockfd, thread_index);
-            printf ("Thread #%d closed session, client disconnected.\n", thread_index);
-
+        
+        printf ("Thread #%d took charge of a request\n", thread_index);
 
         
-            // notifying the main thread that THIS thread is now free and can be assigned to new requests.
+        /* critical section */
+        pthread_mutex_lock(&lock_g);
+            conn_sockfd = fds[thread_index];
+        pthread_mutex_unlock(&lock_g);
+        /* end critical section */
+
+
+        // keep reading messages from client until "quit" arrives.
         
-            /* critical section */
-            pthread_mutex_lock(&lock_g);
-                busy[thread_index] = 0;
-            pthread_mutex_unlock(&lock_g);
-            /* end critical section */
-        
+        // serving the request (dispatched)
+        dispatcher(conn_sockfd, thread_index);
+        printf ("Thread #%d closed session, client disconnected.\n", thread_index);
+
+
+    
+        // notifying the main thread that THIS thread is now free and can be assigned to new requests.
+    
+        /* critical section */
+        pthread_mutex_lock(&lock_g);
+            busy[thread_index] = 0;
+        pthread_mutex_unlock(&lock_g);
+        /* end critical section */
+    
     
         xp_sem_post(&free_threads);
 
@@ -1455,7 +1457,9 @@ generateRandomString(char* str, size_t size)  // size_t: type able to represent 
 
     const char charset[] =  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                             "abcdefghijklmnopqrstuvwxyz"
-                            "0123456789";
+                            "0123456789";                       // side note: the characters "." and "/" are also allowed as arguments of `crypt()`,
+                                                                //            however they're not included in this list because the reservation code
+                                                                //            -- that uses this function -- has to be an alphanumeric string.
 
     // init random number generator
     srand(time(NULL));

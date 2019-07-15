@@ -4,6 +4,14 @@ Concurrent & Distributed Programming class
 Project specifications (ita):<br>
 [http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf](http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf)
 
+#### abstract:
+
+Client/server application for hotel bookings.<br>
+Client and server communicate via TCP sockets. The server is concurrent and the concurrency is implemented with POSIX threads. 
+The server indefinitely waits for new incoming connections and every accepted connection is dispatched to a thread – in a pre-allocated pool of threads – in charge of
+managing the requests of the client.
+The reservations are constrained to the year 2020.
+
 #### demo:
 
 [![demo](https://i.imgur.com/9VQdDrU.png)](https://youtu.be/2S_IpDbXQF8)
@@ -14,6 +22,18 @@ Project specifications (ita):<br>
 
 
 ### Usage<sup>1</sup>:
+
+#### install dependencies:
+Linux:
+```sh
+sudo apt-get install libsqlite3-dev
+sudo apt-get install sqlitebrowser          # optional
+```
+macOS:
+```sh
+brew install sqlite3                        # optional
+brew cask install db-browser-for-sqlite     # optional
+```
 
 #### compilation:
 ```sh
