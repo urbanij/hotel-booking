@@ -4,6 +4,14 @@ Concurrent & Distributed Programming class
 Project specifications (ita):<br>
 [http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf](http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf)
 
+#### demo:
+
+[![demo](https://i.imgur.com/9VQdDrU.png)](https://youtu.be/2S_IpDbXQF8)
+
+
+#### documentation:
+[HTML](https://urbanij.github.io/projects/hotel-booking/docs/html/index.html) | [PDF](https://urbanij.github.io/projects/hotel-booking/docs/latex/refman.pdf)
+
 
 ### Usage<sup>1</sup>:
 
@@ -35,16 +43,9 @@ make sure to compile with `-DGDB_MODE`, then run `gdb ./server`.<br>
 Inside gdb type `r` to run and you're good to go.<br> For an easier debugging experience [this](https://github.com/cyrus-and/gdb-dashboard) is recommended.
 
 
-
-### demo:
-
-[![demo](https://i.imgur.com/9VQdDrU.png)](https://youtu.be/2S_IpDbXQF8)
-
-
-
 <br>
 
 [Francesco Urbani](https://urbanij.github.io/)
 
 ---
-<sup>1</sup>: tested on Linux Ubuntu 18, Raspbian and macOS
+<sup>1</sup>: tested on Linux Ubuntu 18, Raspbian and macOS.

@@ -33,6 +33,8 @@
     \x1b[36m view                         \x1b[0m --> show current bookings\n\
     \x1b[36m logout                       \x1b[0m --> log out\n\
     \x1b[36m quit                         \x1b[0m --> log out and quit\n"
+
+
 #else
 
     // show ALL the options
@@ -59,8 +61,34 @@
 
 #define INVALID_COMMAND_MESSAGE         "\x1b[31mInvalid command.\x1b[0m\n"
 #define UNREGISTERED_USERNAME_ERR_MSG   "\x1b[31mUnregistered username.\x1b[0m\nGo ahead and register first.\n"
-
+#define INVALID_DATE_MSG                "\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n"
+#define INVALID_FORMAT_RESERVE_MSG      "\x1b[31mInvalid format.\x1b[0m Make sure the foramt is:\n\t        reserve [dd/mm]\n"
+#define INVALID_FORMAT_RELEASE_MSG      "\x1b[31mInvalid format.\x1b[0m Make sure the format is:\n\t        release [dd/mm] [room] [code]\n"
+#define WRONG_PASSWORD_MSG              "\x1b[31m\033[1mwrong password.\x1b[0m Try to login again...\n"
+#define ACCESS_GRANTED_MSG              "OK, access granted.\n"
+#define USERNAME_TAKEN_MSG              "\x1b[31m\033[1musername already taken.\x1b[0m\n"
+#define USERNAME_PROMPT_MSG             "Insert username: "
 #define PASSWORD_PROMPT_MSG             "Insert password: "
 
 
+
+
+// the following definitions have to be unique.
+
+#define HELP_MSG                        "h"
+#define REGISTER_MSG                    "r"
+#define LOGIN_MSG                       "l"
+#define QUIT_MSG                        "q"
+#define LOGOUT_MSG                      "lgt"
+#define VIEW_MSG                        "v"
+#define RESERVE_MSG                     "res"
+#define RELEASE_MSG                     "rel"
+
+
+
+
 #endif
+
+
+
+

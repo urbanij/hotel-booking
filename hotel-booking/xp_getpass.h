@@ -84,7 +84,7 @@ term_getpass(const char* prompt)
 static inline char* 
 xp_getpass(const char* prompt)
 {
-    #ifndef __APPLE__
+    #ifdef __APPLE__
         return getpass(prompt);
     #else
 

@@ -400,25 +400,25 @@ main(int argc, char** argv)
         // looking for free thread
 
 
-    /* critical section */
+        /* critical section */
         pthread_mutex_lock(&lock_g);
 
-        for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
-            // thread assignment
+            for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
+                // thread assignment
 
-            if (busy[thread_index] == 0) {
-                break;
+                if (busy[thread_index] == 0) {
+                    break;
+                }
             }
-        }
 
-        printf("%s: Thread #%d has been selected.\n",
-                                            "MAIN", // __func__, 
-                                            thread_index);
+            printf("%s: Thread #%d has been selected.\n",
+                                                "MAIN", // __func__, 
+                                                thread_index);
 
-        fds[thread_index] = conn_sockfd;    // assigning socket file descriptor to the file descriptors array
-        busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till its release
+            fds[thread_index] = conn_sockfd;    // assigning socket file descriptor to the file descriptors array
+            busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till its release
 
-    /* critical section */
+        /* end critical section */
         pthread_mutex_unlock(&lock_g);
 
         
@@ -460,30 +460,30 @@ threadHandler(void* indx)
         
         // waiting for a request assigned by the main thread
         xp_sem_wait(&evsem[thread_index]);
-        printf ("Thread #%d took charge of a request\n", thread_index);
+            printf ("Thread #%d took charge of a request\n", thread_index);
 
-        /* critical section */
-        pthread_mutex_lock(&lock_g);
-        conn_sockfd = fds[thread_index];
-        pthread_mutex_unlock(&lock_g);
-        /* end critical section */
+            /* critical section */
+            pthread_mutex_lock(&lock_g);
+                conn_sockfd = fds[thread_index];
+            pthread_mutex_unlock(&lock_g);
+            /* end critical section */
 
 
-        // keep reading messages from client until "quit" arrives.
+            // keep reading messages from client until "quit" arrives.
+            
+            // serving the request (dispatched)
+            dispatcher(conn_sockfd, thread_index);
+            printf ("Thread #%d closed session, client disconnected.\n", thread_index);
+
+
         
-        // serving the request (dispatched)
-        dispatcher(conn_sockfd, thread_index);
-        printf ("Thread #%d closed session, client disconnected.\n", thread_index);
-
-
-    
-        // notifying the main thread that THIS thread is now free and can be assigned to new requests.
-    
-        /* critical section */
-        pthread_mutex_lock(&lock_g);
-        busy[thread_index] = 0;
-        pthread_mutex_unlock(&lock_g);
-        /* end critical section */
+            // notifying the main thread that THIS thread is now free and can be assigned to new requests.
+        
+            /* critical section */
+            pthread_mutex_lock(&lock_g);
+                busy[thread_index] = 0;
+            pthread_mutex_unlock(&lock_g);
+            /* end critical section */
         
     
         xp_sem_post(&free_threads);
@@ -544,19 +544,19 @@ dispatcher (int conn_sockfd, int thread_index)
                 memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
-                if      (strcmp(command, "h") == 0){
+                if      (strcmp(command, HELP_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "help");
                     state = HELP_UNLOGGED;
                 }
-                else if (strcmp(command, "r") == 0){
+                else if (strcmp(command, REGISTER_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "register");
                     state = REGISTER;
                 }
-                else if (strcmp(command, "l") == 0){
+                else if (strcmp(command, LOGIN_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "login");
                     state = LOGIN_REQUEST;
                 }
-                else if (strcmp(command, "q") == 0){
+                else if (strcmp(command, QUIT_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "quit");
                     state = QUIT;
                 }
@@ -694,27 +694,27 @@ dispatcher (int conn_sockfd, int thread_index)
                 memset(command, '\0', BUFSIZE);
                 readSocket(conn_sockfd, command);  // fix space separated strings
 
-                if      (strcmp(command, "hh") == 0){ 
+                if      (strcmp(command, HELP_MSG) == 0){ 
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "help");
                     state = HELP_LOGGED_IN;
                 }
-                else if (strcmp(command, "q") == 0){  
+                else if (strcmp(command, QUIT_MSG) == 0){  
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "quit");
                     state = QUIT;
                 }
-                else if (strcmp(command, "logout") == 0) {
+                else if (strcmp(command, LOGOUT_MSG) == 0) {
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "logout");
                     state = INIT;
                 }
-                else if (strcmp(command, "v") == 0){  
+                else if (strcmp(command, VIEW_MSG) == 0){  
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "view");
                     state = VIEW;
                 }
-                else if (strcmp(command, "res") == 0){
+                else if (strcmp(command, RESERVE_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "reserve");
                     state = CHECK_DATE_VALIDITY;
                 }
-                else if (strcmp(command, "rel") == 0){
+                else if (strcmp(command, RELEASE_MSG) == 0){
                     printf("THREAD #%d: command received: \033[1m%s\x1b[0m\n", thread_index, "release");
                     state = RELEASE;
                 }

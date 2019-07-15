@@ -193,9 +193,9 @@ main(int argc, char** argv)
             
 
             case SEND_HELP:
-                writeSocket(sockfd, "h");   // trims the command to the first char only
-                                            // since it uniquely indentifies the command. 
-                                            // there's not need to ship the whole string
+                writeSocket(sockfd, HELP_MSG);  // trims the command to the first char only
+                                                // since it uniquely indentifies the command. 
+                                                // there's not need to ship the whole string
             
                 state = READ_HELP_RESP;
                 break;
@@ -211,7 +211,7 @@ main(int argc, char** argv)
                 break;
 
             case SEND_HELP_LOGGED:
-                writeSocket(sockfd, "hh");
+                writeSocket(sockfd, HELP_MSG);
             
                 state = READ_HELP_LOGGED_RESP;
                 break;
@@ -226,12 +226,12 @@ main(int argc, char** argv)
                 break;
 
             case SEND_QUIT:
-                writeSocket(sockfd, "q");
+                writeSocket(sockfd, QUIT_MSG);
                 printf("Quitting...\n");
                 goto ABORT;
 
             case SEND_REGISTER:
-                writeSocket(sockfd, "r");
+                writeSocket(sockfd, REGISTER_MSG);
             
                 state = READ_REGISTER_RESP;
                 break;
@@ -269,11 +269,10 @@ main(int argc, char** argv)
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
-                    printf("%s\n", "username OK.");
+                    printf("Username OK.\n");
                 }
                 else {
-                    printf("%s\n", "\x1b[31m\033[1musername already taken.\x1b[0m");
-                    //                ^--red  ^--bold
+                    printf(USERNAME_TAKEN_MSG);
                 }
 
                 if (strcmp(command, "Y") == 0){
@@ -316,19 +315,18 @@ main(int argc, char** argv)
                 break;
 
             case SEND_LOGIN:
-                writeSocket(sockfd, "l");         
+                writeSocket(sockfd, LOGIN_MSG);         
                 state = READ_LOGIN_RESP;
                 break;
 
             case READ_LOGIN_RESP:
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);    // "OK"
-                // printf("%s\n", command);
                 state = SEND_LOGIN_USERNAME;
                 break;
 
             case SEND_LOGIN_USERNAME:
-                printf("Insert username: ");
+                printf(USERNAME_PROMPT_MSG);
                 fgets(username, USERNAME_MAX_LENGTH, stdin);          // `\n` is included in username thus I replace it with `\0`
                 username[strlen(username)-1] = '\0';
 
@@ -345,7 +343,7 @@ main(int argc, char** argv)
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
-                    printf("%s\n", "OK.");
+                    printf("OK.\n");
                     state = SEND_LOGIN_PASSWORD;
                 }
                 else {
@@ -377,12 +375,11 @@ main(int argc, char** argv)
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);
                 if (strcmp(command, "Y") == 0){
-                    printf("%s\n", "OK, access granted.");
+                    printf(ACCESS_GRANTED_MSG);
                     state = CL_LOGIN;
                 }
                 else {
-                    printf("%s\n", "\x1b[31m\033[1mwrong password.\x1b[0m Try to login again...");
-                    //                ^--red  ^--bold
+                    printf(WRONG_PASSWORD_MSG);
                     state = CL_INIT;
                 }
                 break;
@@ -435,7 +432,7 @@ main(int argc, char** argv)
                             if (regexMatch(booking->date, REGEX_DATE_VALID)){
                                 state = SEND_RESERVE;        
                             } else {
-                                printf("\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n");
+                                printf(INVALID_DATE_MSG);
                                 state = CL_LOGIN;
                             }
                             
@@ -454,7 +451,7 @@ main(int argc, char** argv)
                                 state = SEND_RELEASE;
                             }
                             else {
-                                printf("\x1b[31mInvalid date.\x1b[0m Make sure the day actually exists in 2020.\n");
+                                printf(INVALID_DATE_MSG);
                                 state = CL_LOGIN;
                             }
                             
@@ -477,18 +474,18 @@ main(int argc, char** argv)
                 break;
 
             case INVALID_DATE:
-                printf("\x1b[31mInvalid format.\x1b[0m Make sure the foramt is:\n\t        reserve [dd/mm]\n");
+                printf(INVALID_FORMAT_RESERVE_MSG);
                 state = CL_LOGIN;
                 break;
 
             case INVALID_RELEASE:
-                printf("\x1b[31mInvalid format.\x1b[0m Make sure the format is:\n\t        release [dd/mm] [room] [code]\n");
+                printf(INVALID_FORMAT_RELEASE_MSG);
                 state = CL_LOGIN;
                 break;
 
 
             case SEND_LOGOUT:
-                writeSocket(sockfd, "logout");
+                writeSocket(sockfd, LOGOUT_MSG);
                 state = CL_INIT;
 
                 // to be used later when i'm logged in and display the username
@@ -497,7 +494,7 @@ main(int argc, char** argv)
                 break;
 
             case SEND_RESERVE:
-                writeSocket(sockfd, "res");
+                writeSocket(sockfd, RESERVE_MSG);
 
                 writeSocket(sockfd, booking->date);
 
@@ -532,20 +529,19 @@ main(int argc, char** argv)
 
 
             case SEND_VIEW:
-                writeSocket(sockfd, "v");
+                writeSocket(sockfd, VIEW_MSG);
                 state = READ_VIEW_RESP;
                 break;
 
             case READ_VIEW_RESP:
                 memset(response, '\0', BUFSIZE);
                 readSocket(sockfd, response);
-                // printf("%s\n", "Your active reservations:");
                 printf("%s\n", response);
                 state = CL_LOGIN;
                 break;
 
             case SEND_RELEASE:
-                writeSocket(sockfd, "rel");
+                writeSocket(sockfd, RELEASE_MSG);
                 writeSocket(sockfd, booking->date);
                 writeSocket(sockfd, booking->room);
                 writeSocket(sockfd, booking->code);
