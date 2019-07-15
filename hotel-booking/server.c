@@ -93,38 +93,38 @@
 
 /********************************/
 /*                              */
-/*          global var          */
+/*       global variables       */
 /*                              */
 /********************************/
 
-static xp_sem_t     lock_g;                     // global lock
-static xp_sem_t     users_lock_g;               // global lock for accessing the file `users.txt`
+static pthread_mutex_t  lock_g;                     // global lock
+static pthread_mutex_t  users_lock_g;               // global lock for accessing the file `users.txt`
 
 
-static xp_sem_t     free_threads;               // semaphore for waiting for free threads
-static xp_sem_t     evsem[NUM_THREADS];         // per-thread event semaphores
+static xp_sem_t         free_threads;               // semaphore for waiting for free threads
+static xp_sem_t         evsem[NUM_THREADS];         // per-thread event semaphores
 
-static int          fds[NUM_THREADS];           // array of file descriptors
-
-
-static int          busy[NUM_THREADS];          // map of busy threads
-static int          tid[NUM_THREADS];           // array of pre-allocated thread IDs
-static pthread_t    threads[NUM_THREADS];       // array of pre-allocated threads
+static int              fds[NUM_THREADS];           // array of file descriptors
 
 
-
-static char         query_result_g[2048];
-static char         rooms_busy_g[4];
-static int          entry_id_g;
-
-
-static int          hotel_max_available_rooms;
+static int              busy[NUM_THREADS];          // map of busy threads
+static int              tid[NUM_THREADS];           // array of pre-allocated thread IDs
+static pthread_t        threads[NUM_THREADS];       // array of pre-allocated threads
 
 
 
-                                                // folder path + file name saved in `config.h` merge
-static char         USER_FILE[30];              // user file path
-static char         DATABASE[30];               // database  path 
+static char             query_result_g[BUFSIZE];    // response of `view` query.            Used in `viewCallback()`
+static char             rooms_busy_g[4];            // response of `SELECT COUNT...` query. Used in `busy_roomsCallback()`
+static int              entry_id_g;                 // Used in `validEntryCallback()`. Stores whether entry is in Bookings table or not.
+
+
+static int              hotel_max_available_rooms;  // hotel max available rooms. Read from stdin as soon as the program starts.
+
+
+
+                                                    // folder path + file name saved in `config.h` merge
+static char             USER_FILE[30];              // user file path
+static char             DATABASE[30];               // database  path 
 
 
 
@@ -333,8 +333,8 @@ main(int argc, char** argv)
 
 
     // setup semaphores
-    xp_sem_init(&lock_g, 0, 1);             // init to 1 since it's binary
-    xp_sem_init(&users_lock_g, 0, 1);       // init to 1 since it's binary
+    pthread_mutex_init(&lock_g, 0);
+    pthread_mutex_init(&users_lock_g, 0);
     xp_sem_init(&free_threads, 0, NUM_THREADS);
 
 
@@ -401,7 +401,7 @@ main(int argc, char** argv)
 
 
     /* critical section */
-        xp_sem_wait(&lock_g);
+        pthread_mutex_lock(&lock_g);
 
         for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
             // thread assignment
@@ -419,7 +419,7 @@ main(int argc, char** argv)
         busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till its release
 
     /* critical section */
-        xp_sem_post(&lock_g);
+        pthread_mutex_unlock(&lock_g);
 
         
         xp_sem_post(&evsem[thread_index]);        
@@ -463,9 +463,9 @@ threadHandler(void* indx)
         printf ("Thread #%d took charge of a request\n", thread_index);
 
         /* critical section */
-        xp_sem_wait(&lock_g);
+        pthread_mutex_lock(&lock_g);
         conn_sockfd = fds[thread_index];
-        xp_sem_post(&lock_g);
+        pthread_mutex_unlock(&lock_g);
         /* end critical section */
 
 
@@ -480,9 +480,9 @@ threadHandler(void* indx)
         // notifying the main thread that THIS thread is now free and can be assigned to new requests.
     
         /* critical section */
-        xp_sem_wait(&lock_g);
+        pthread_mutex_lock(&lock_g);
         busy[thread_index] = 0;
-        xp_sem_post(&lock_g);
+        pthread_mutex_unlock(&lock_g);
         /* end critical section */
         
     
@@ -1090,13 +1090,13 @@ usernameIsRegistered(char* u)
     char line[50];
 
     // locking shared resource
-    xp_sem_wait(&users_lock_g);
+    pthread_mutex_lock(&users_lock_g);
 
     FILE* users_file;
 
     users_file = fopen(USER_FILE, "r");
     if(users_file == NULL) {
-        xp_sem_post(&users_lock_g);
+        pthread_mutex_unlock(&users_lock_g);
         return 0;       // no file exists, hence no username exists, gr8
     }
 
@@ -1110,7 +1110,7 @@ usernameIsRegistered(char* u)
             fclose(users_file);
             
             // unlocking shared resource before going returning to caller
-            xp_sem_post(&users_lock_g);
+            pthread_mutex_unlock(&users_lock_g);
             return 1;   // found user in the file
         }
     }
@@ -1118,7 +1118,7 @@ usernameIsRegistered(char* u)
     fclose(users_file);
 
     // unlocking shared resource before going returning to caller
-    xp_sem_post(&users_lock_g);
+    pthread_mutex_unlock(&users_lock_g);
     
     return 0;           // username `u` is new to the system, hence the registration can proceed.
 }
@@ -1138,7 +1138,7 @@ updateUsersRecordFile(char* username, char* encrypted_password)
     strcat(buffer, encrypted_password);
 
     // protecting shared resource access with semaphore
-    xp_sem_wait(&users_lock_g);
+    pthread_mutex_lock(&users_lock_g);
 
     FILE* users_file;
     users_file = fopen(USER_FILE, "a+");
@@ -1152,7 +1152,7 @@ updateUsersRecordFile(char* username, char* encrypted_password)
     // close connection to file
     fclose(users_file);
 
-    xp_sem_post(&users_lock_g);
+    pthread_mutex_unlock(&users_lock_g);
 
     return 0;
 }
@@ -1209,7 +1209,7 @@ checkIfPasswordMatches(User* user)
     char res[512]; // result of decryption operation
 
     // protecting shared resource with mutex semaphore
-    xp_sem_wait(&users_lock_g);
+    pthread_mutex_lock(&users_lock_g);
 
     FILE* users_file;
 
@@ -1217,7 +1217,7 @@ checkIfPasswordMatches(User* user)
     if (users_file == NULL) {
         perror("fopen(USER_FILE)");
 
-        xp_sem_post(&users_lock_g);
+        pthread_mutex_unlock(&users_lock_g);
         return -1;       // file is missing...
     }
 
@@ -1250,13 +1250,13 @@ checkIfPasswordMatches(User* user)
         // if username and password match, login is successful.
         if (strcmp(user->username, stored_username) == 0 && strcmp(res, stored_enc_psswd) == 0){
             fclose(users_file);
-            xp_sem_post(&users_lock_g);
+            pthread_mutex_unlock(&users_lock_g);
             return 0;
         }
     }
 
     fclose(users_file);
-    xp_sem_post(&users_lock_g);
+    pthread_mutex_unlock(&users_lock_g);
     return 1;
 
 }
