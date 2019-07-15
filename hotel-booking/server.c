@@ -174,10 +174,11 @@ int         usernameIsRegistered(char* u);
 int         updateUsersRecordFile(char* username, char* password);
 
 /** @brief  Takes plain text password and return the encrypted version of it
+ *  @param thread index used from printing purposes
  *  @param password The plain text password
  *  @return encrypted password
  */
-char*       encryptPassword(char* password);
+char*       encryptPassword(int thread_index, char* password);
 
 
 /** @brief   `Opens users.txt` and checks whether password of user `user` matches.
@@ -190,25 +191,28 @@ int         checkIfPasswordMatches(User* user);
 
 
 /** @brief  save user reservation to database
+ *  @param thread index used from printing purposes
  *  @param user
  *  @param booking booking data
  *  @return 
  */
-int         saveReservation(User* user, Booking* booking);
+int         saveReservation(int thread_index, User* user, Booking* booking);
 
 
 /** @brief Commit command to database
  *  @param sql_command Sql command to be committed
+ *  @param thread index used from printing purposes
  *  @return 0 if successful, !0 if not successful.
  */
-int         commitToDatabase(const char* sql_command);
+int         commitToDatabase(int thread_index, const char* sql_command);
 
 /** @brief Query the database
+ *  @param thread index used from printing purposes
  *  @param query_id
  *  @param sql_command 
  *  @return struct query (i.e.: return value (int), and query response (char*) )
  */
-query_t*    queryDatabase(const int query_id, const char* sql_command);
+query_t*    queryDatabase(int thread_index, const int query_id, const char* sql_command);
 
 /** @brief Used by queryDatabase()
  *  @param
@@ -239,10 +243,11 @@ int         validEntryCallback(void* NotUsed, int argc, char** argv, char** azCo
 int         setupDatabase();
 
 /** @brief Assign room to user upon `reserve` request.
+ *  @param thread index used from printing purposes
  *  @param date
  *  @return room number (string) or "ERR" to notify error (no room available)
  */
-char*       assignRoom(char* date);
+char*       assignRoom(int thread_index, char* date);
 
 /** @brief Generate random string. Used both for CODE generatio and for salt generation
  *  @param str the random string generated
@@ -253,17 +258,18 @@ void        generateRandomString(char* str, size_t size);
 
 /** @brief Open database and returns the reservation for the user
  *         the called the function.
+ *  @param thread index used from printing purposes
  *  @param username
  *  @return 
  */
-char*       fetchUserReservations(User* user);
+char*       fetchUserReservations(int thread_index, User* user);
 
 /** @brief   release reservation and wipe related entry from databse.
  *  @param user
  *  @param booking
  *  @return 0 (succ) or -1 (fail).
  */
-int         releaseReservation(User* user, Booking* booking);
+int         releaseReservation(int thread_index, User* user, Booking* booking);
 
 
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
@@ -394,7 +400,7 @@ main(int argc, char** argv)
         printf("%s: \x1b[32mconnection established\x1b[0m  with client @ %s:%d\n",
                                                         "MAIN", // __func__, 
                                                         ip_client, 
-                                                        client_addr.sin_port 
+                                                        address.port // client_addr.sin_port 
                                                     );
 
 
@@ -453,7 +459,10 @@ threadHandler(void* indx)
     int thread_index = *(int*) indx;       // unpacking argument
     int conn_sockfd;                       // file desc. local variable
 
+    
     printf("THREAD #%d ready.\n", thread_index);
+
+
 
     while(1)
     {
@@ -461,8 +470,6 @@ threadHandler(void* indx)
         // waiting for a request assigned by the main thread
         xp_sem_wait(&evsem[thread_index]);
         
-        printf ("Thread #%d took charge of a request\n", thread_index);
-
         
         /* critical section */
         pthread_mutex_lock(&lock_g);
@@ -475,7 +482,9 @@ threadHandler(void* indx)
         
         // serving the request (dispatched)
         dispatcher(conn_sockfd, thread_index);
+        
         printf ("Thread #%d closed session, client disconnected.\n", thread_index);
+    
 
 
     
@@ -484,6 +493,9 @@ threadHandler(void* indx)
         /* critical section */
         pthread_mutex_lock(&lock_g);
             busy[thread_index] = 0;
+            
+            printf("MAIN: Thread #%d has been freed.\n", thread_index);
+        
         pthread_mutex_unlock(&lock_g);
         /* end critical section */
     
@@ -609,7 +621,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 strcpy(user->actual_password, command);
 
                 #if VERBOSE_DEBUG
-                    printf("Plain text password inserted: \033[1m%s\x1b[0m\n", user->actual_password);
+                    printf("Thread #%d: Plain text password inserted: \033[1m%s\x1b[0m\n", thread_index, user->actual_password);
                 #endif
 
                 state = SAVE_CREDENTIAL;
@@ -618,7 +630,7 @@ dispatcher (int conn_sockfd, int thread_index)
             case SAVE_CREDENTIAL:
                 
                 #if ENCRYPT_PASSWORD 
-                    updateUsersRecordFile(user->username, encryptPassword(user->actual_password));
+                    updateUsersRecordFile(user->username, encryptPassword(thread_index, user->actual_password));
                 #else
                     updateUsersRecordFile(user->username, user->actual_password);
                 #endif
@@ -665,11 +677,11 @@ dispatcher (int conn_sockfd, int thread_index)
                 strcpy(user->actual_password, command);
 
                 #if VERBOSE_DEBUG
-                    printf("Plain text password received \033[1m%s\x1b[0m\n", user->actual_password);
+                    printf("Thread #%d: Plain text password received \033[1m%s\x1b[0m\n", thread_index, user->actual_password);
                 #endif
 
                 #if DEBUG
-                    printf("checking if \033[1m%s\x1b[0m is in user.txt\n", user->username);
+                    printf("Thread #%d: checking whether \033[1m%s\x1b[0m is in user.txt\n", thread_index, user->username);
                 #endif
 
 
@@ -752,7 +764,7 @@ dispatcher (int conn_sockfd, int thread_index)
             // check data validity and availability
             case CHECK_AVAILABILITY:
 
-                if (strcmp(assignRoom(booking.date), "FULL") != 0){
+                if (strcmp(assignRoom(thread_index, booking.date), "FULL") != 0){
                     state = RESERVE_CONFIRMATION;
                 }
                 else {
@@ -762,7 +774,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 break;
 
             case RESERVE_CONFIRMATION:
-                strcpy(booking.room, assignRoom(booking.date));
+                strcpy(booking.room, assignRoom(thread_index, booking.date));
                 
                 // strcpy(booking.code, generateRandomString());
                 generateRandomString(booking.code, RESERVATION_CODE_LENGTH);
@@ -770,7 +782,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 upper(booking.code);
 
 
-                saveReservation(user, &booking);
+                saveReservation(thread_index, user, &booking);
 
                 writeSocket(conn_sockfd, "RESOK");
                 writeSocket(conn_sockfd, booking.room);
@@ -783,7 +795,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 memset(reservation_response, '\0', sizeof(reservation_response));
                 memset(query_result_g, '\0', sizeof(query_result_g));
                 
-                strcpy(reservation_response, fetchUserReservations(user));
+                strcpy(reservation_response, fetchUserReservations(thread_index, user));
 
 
                 if (strcmp(reservation_response, "") == 0){
@@ -823,7 +835,7 @@ dispatcher (int conn_sockfd, int thread_index)
                 upper(booking.code);
 
 
-                rv = releaseReservation(user, &booking);
+                rv = releaseReservation(thread_index, user, &booking);
 
                 if (rv == 0){
                     writeSocket(conn_sockfd, "\033[92mOK.\x1b[0m Reservation deleted successfully.");
@@ -864,7 +876,7 @@ dispatcher (int conn_sockfd, int thread_index)
 /* . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . */
 
 int 
-commitToDatabase(const char* sql_command)
+commitToDatabase(int thread_index, const char* sql_command)
 {
     sqlite3* db;
     char* err_msg = 0;
@@ -879,7 +891,7 @@ commitToDatabase(const char* sql_command)
     
 
     #if VERBOSE_DEBUG
-        printf("Committing to database:\n%s\n", sql_command);
+        printf("Thread #%d: Committing to database:\n   %s\n", thread_index, sql_command);
     #endif
 
 
@@ -901,7 +913,7 @@ commitToDatabase(const char* sql_command)
 
 
 query_t* 
-queryDatabase(const int query_id, const char* sql_command) 
+queryDatabase(int thread_index, const int query_id, const char* sql_command) 
 {
     
     query_t* query = (query_t*) malloc(sizeof(query_t)); // variable to be returned + its initialization
@@ -939,7 +951,7 @@ queryDatabase(const int query_id, const char* sql_command)
     }
 
     #if VERBOSE_DEBUG
-        printf("Querying from database:\n%s\n", sql_command);
+        printf("Thread #%d: Querying from database:\n   %s\n", thread_index, sql_command);
     #endif
 
 
@@ -1051,7 +1063,7 @@ validEntryCallback(void* NotUsed, int argc, char** argv, char** azColName)
 {   
     entry_id_g = atoi(argv[0]);
 
-    #if DEBUG
+    #if VERY_VERBOSE_DEBUG
         printf("Releasing entry with id %d\n", entry_id_g);
     #endif
     
@@ -1078,7 +1090,7 @@ setupDatabase()
     );
 
     int rv;
-    rv = commitToDatabase(sql_command);
+    rv = commitToDatabase(-1, sql_command);
     
     return rv;  // 0 meaning ok, -1 not ok
 }
@@ -1160,7 +1172,7 @@ updateUsersRecordFile(char* username, char* encrypted_password)
 }
 
 char* 
-encryptPassword(char* password)
+encryptPassword(int thread_index, char* password)
 {
     // encrypted password returned 
     // (static because it has to outlive the time-scope of the function)
@@ -1182,7 +1194,7 @@ encryptPassword(char* password)
     generateRandomString(salt, 3);  // 3:   2 for salt, 1 for '\0'.
     
     #if VERBOSE_DEBUG
-        printf("Salt: %c%c\n", salt[0], salt[1]);
+        printf("Thread #%d: Salt: %c%c\n", thread_index, salt[0], salt[1]);
     #endif
 
     
@@ -1265,7 +1277,7 @@ checkIfPasswordMatches(User* user)
 
 
 int 
-saveReservation(User* u, Booking* b)
+saveReservation(int thread_index, User* u, Booking* b)
 {
 
     /* You may want to add a check to see whether the same 
@@ -1300,7 +1312,7 @@ saveReservation(User* u, Booking* b)
     strcat(sql_command, "');");
     
 
-    rv = commitToDatabase(sql_command);
+    rv = commitToDatabase(thread_index, sql_command);
 
     return rv;  // 0 is OK, -1 is not.
 }
@@ -1308,7 +1320,7 @@ saveReservation(User* u, Booking* b)
 
 
 char* 
-assignRoom(char* date)
+assignRoom(int thread_index, char* date)
 {
 
     char sql_command[512];
@@ -1325,7 +1337,7 @@ assignRoom(char* date)
 
 
     // initialize that long variable
-    query = queryDatabase(1, sql_command);
+    query = queryDatabase(thread_index, 1, sql_command);
 
 
 
@@ -1417,7 +1429,7 @@ assignRoom(char* date)
             strcat(sql_command, date);
             strcat(sql_command, "') ) ) ), 999 ) ) )");
 
-            query = queryDatabase(1, sql_command);
+            query = queryDatabase(thread_index, 1, sql_command);
 
             // Checking the results of the query
             if (query->rv == 0){     // if return value is not 0, something went wrong.
@@ -1479,7 +1491,7 @@ generateRandomString(char* str, size_t size)  // size_t: type able to represent 
 
 
 char* 
-fetchUserReservations(User* user)
+fetchUserReservations(int thread_index, User* user)
 {
     query_t* query = (query_t*) malloc(sizeof(query_t));
  
@@ -1495,7 +1507,7 @@ fetchUserReservations(User* user)
     #endif
     
 
-    query = queryDatabase(0, sql_command);
+    query = queryDatabase(thread_index, 0, sql_command);
 
 
     if (query->rv == 0){
@@ -1513,7 +1525,7 @@ fetchUserReservations(User* user)
 
 
 int 
-releaseReservation(User* user, Booking* booking)
+releaseReservation(int thread_index, User* user, Booking* booking)
 {
 
     /* check if entry is found in database
@@ -1537,7 +1549,7 @@ releaseReservation(User* user, Booking* booking)
 
     // allocating dynamic variable where the result of the query will be stored.
     query_t* query = (query_t*) malloc(sizeof(query_t));
-    query = queryDatabase(2, sql_command);
+    query = queryDatabase(thread_index, 2, sql_command);
     
 
     if (query->rv == 0){
@@ -1565,7 +1577,7 @@ releaseReservation(User* user, Booking* booking)
 
             // freeing memory before returning
             free(query);
-            return commitToDatabase(sql_command); // 0 is ok.
+            return commitToDatabase(thread_index, sql_command); // 0 is ok.
 
         }
     

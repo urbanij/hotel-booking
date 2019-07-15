@@ -39,6 +39,9 @@
 #define DEBUG                   1       // debug mode: prints messages to the console
 #if DEBUG
     #define VERBOSE_DEBUG       1       // even more debug messages
+    #if VERBOSE_DEBUG
+    #define VERY_VERBOSE_DEBUG  0
+    #endif
 #endif
 
 #define HELP_MESSAGE_TYPE_1     1       // 1 for type 1, 2 for type 2

@@ -66,11 +66,10 @@
 #define REGEX_ROOM          "^[1-9]{1,3}$"          // room can be in range 1-999 
 #define REGEX_CODE          "^([a-zA-Z0-9]{5})$"    // 5 chars, alphanumeric
 
-// removed ^ from date regex pattern so regex accepts leading whitespace for it.
+// removed ^ from date regex pattern so leading whitespaces are discarded.
 #define REGEX_DATE_FORMAT   "[0-9]{2}/[0-9]{2}$"
 #define REGEX_DATE_VALID    "(((0[1-9]|[12][0-9]|3[01])/(0[13578]|1[02]))|((0[1-9]|[12][0-9]|30)/(0[13456789]|1[012]))|((0[1-9]|1[0-9]|2[0-8])/02)|(29/02))$"
                             /* inspired by [this answer](https://stackoverflow.com/a/21583100/6164816), I've then removed the year part and replaced "-" with "/".
-                             * ^(((0[1-9]|[12]\d|3[01])\-(0[13578]|1[02])\-((19|[2-9]\d)\d{2}))|((0[1-9]|[12]\d|30)\-(0[13456789]|1[012])\-((19|[2-9]\d)\d{2}))|((0[1-9]|1\d|2[0-8])\-02\-((19|[2-9]\d)\d{2}))|(29\-02\-((1[6-9]|[2-9]\d)(0[48]|[2468][048]|[13579][26])|((16|[2468][048]|[3579][26])00))))$
                              */
 
 
@@ -188,20 +187,17 @@ main(int argc, char** argv)
                  * to receive hence i don't send anything into the socket.
                  */
                 printf(INVALID_COMMAND_MESSAGE);
-            
                 state = CL_INIT;
                 break;
             
 
             case SEND_HELP:
-                writeSocket(sockfd, HELP_MSG);  // trims the command to the first char only
-                                                // since it uniquely indentifies the command. 
-                                                // there's not need to ship the whole string
-            
+                writeSocket(sockfd, HELP_MSG);  
                 state = READ_HELP_RESP;
                 break;
 
             case READ_HELP_RESP:
+                // always cleaning data before reading/writing in/from it.
                 memset(response, '\0', BUFSIZE);
 
                 readSocket(sockfd, response);
@@ -213,7 +209,6 @@ main(int argc, char** argv)
 
             case SEND_HELP_LOGGED:
                 writeSocket(sockfd, HELP_MSG);
-            
                 state = READ_HELP_LOGGED_RESP;
                 break;
 
@@ -230,21 +225,18 @@ main(int argc, char** argv)
                 writeSocket(sockfd, QUIT_MSG);
                 printf("Quitting...\n");
                 
-
                 memset(command, '\0', sizeof(command));
                 strcpy(command, "abort");
                 break;
 
             case SEND_REGISTER:
                 writeSocket(sockfd, REGISTER_MSG);
-            
                 state = READ_REGISTER_RESP;
                 break;
 
             case READ_REGISTER_RESP:
                 memset(command, '\0', sizeof(command));
-                readSocket(sockfd, command);    // Choose username
-                // printf("%s", command);
+                readSocket(sockfd, command);
                 state = SEND_USERNAME;
                 break;
 
@@ -309,12 +301,10 @@ main(int argc, char** argv)
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);  // OK: Account was successfully setup.
                 printf("%s\n", command);
-                // memset(command, '\0', BUFSIZE);
 
                 memset(command, '\0', sizeof(command));
                 readSocket(sockfd, command);  // Successfully registerd, you are now logged in
                 printf("%s\n", command);
-                // memset(command, '\0', BUFSIZE);
 
                 state = CL_LOGIN;
                 break;
@@ -475,7 +465,6 @@ main(int argc, char** argv)
             case INVALID_LOGGED_IN:
                 printf(INVALID_COMMAND_MESSAGE);
                 state = CL_LOGIN;
-                
                 break;
 
             case INVALID_DATE:
@@ -500,9 +489,7 @@ main(int argc, char** argv)
 
             case SEND_RESERVE:
                 writeSocket(sockfd, RESERVE_MSG);
-
                 writeSocket(sockfd, booking->date);
-
                 state = READ_RESERVE_RESP;
                 break;
             

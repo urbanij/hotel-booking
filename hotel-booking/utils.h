@@ -394,7 +394,7 @@ setupServer(Address* address)
         perror_die("Listen()");
     }
     else
-        printf(ANSI_COLOR_GREEN "[+] Server listening on port %d" ANSI_COLOR_RESET "\n", address->port);
+        printf(ANSI_COLOR_GREEN "[+] Server listening on %s:%d" ANSI_COLOR_RESET "\n", address->ip, address->port);
 
     return sockfd;
 }
