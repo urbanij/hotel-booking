@@ -26,6 +26,7 @@ The reservations are constrained to the year 2020.
 #### install dependencies:
 Linux:
 ```sh
+sudo apt-get install sqlite3
 sudo apt-get install libsqlite3-dev
 sudo apt-get install sqlitebrowser          # optional
 ```

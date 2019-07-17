@@ -98,7 +98,8 @@ main(int argc, char** argv)
         Address address = readArguments(argc, argv);
     #endif 
 
-    repr_addr(&address);   // print address
+    
+    // repr_addr(&address);   // print address
 
     
 
@@ -552,7 +553,10 @@ main(int argc, char** argv)
             
         } // end switch
         
-        printClientFSMState(&state);
+
+        #if DEBUG
+            printClientFSMState(&state);
+        #endif
 
         // checking the only condition that would let me quit the infinite loop.
         if (strcmp(command, "abort") == 0){ 

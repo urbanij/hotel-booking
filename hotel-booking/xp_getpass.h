@@ -3,7 +3,7 @@
  * Thu Jul 11 08:26:14 CEST 2019
  *
  *
- * `getpass()` is deprecated on Linux, hence this header file.
+ * `getpass()` is obsolete on Linux, hence this header file.
  *          << This function is obsolete.  Do not use it.  If you want to read input
  *             without terminal echoing enabled, see the description of the ECHO
  *             flag in termios(3). >>
@@ -41,7 +41,7 @@ set_input_mode(const char* prompt)
     tcgetattr(STDIN_FILENO, &saved_attributes);
     
     #if 1 // __APPLE__ doesn't care but Ubuntu does. 
-    atexit(reset_input_mode);
+        atexit(reset_input_mode);
     #endif
 
     
@@ -63,7 +63,6 @@ term_getpass(const char* prompt)
     char c;
 
     char asterisk = '*';
-    // char leerzeichen = ' ';
 
     set_input_mode(prompt);
 
@@ -88,7 +87,7 @@ xp_getpass(const char* prompt)
         return getpass(prompt);
     #else
 
-        // seems like getpass works fine on Linux too
+        // seems like getpass works with no warnings on Linux too.
         #if 0
             return term_getpass(prompt);
         #else

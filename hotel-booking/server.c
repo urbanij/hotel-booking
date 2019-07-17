@@ -8,6 +8,7 @@
  *
  *
  * *installation    On Linux Ubuntu sqlite3 is not shipped by default, install it by typing:
+ *                  sudo apt-get install sqlite3
  *                  sudo apt-get install libsqlite3-dev
  *
  *    **optional    install [DB Browser for SQLite](https://sqlitebrowser.org/)
@@ -367,6 +368,7 @@ main(int argc, char** argv)
         int rv;
 
         tid[i] = i;
+        
         rv = pthread_create(&threads[i], NULL, threadHandler, (void*) &tid[i]);
         if (rv) {
             printf("ERROR: #%d\n", rv);
@@ -379,6 +381,8 @@ main(int argc, char** argv)
 
 
 
+
+
     while(1) 
     {
         int thread_index;
@@ -386,55 +390,49 @@ main(int argc, char** argv)
 
         xp_sem_wait(&free_threads);             // wait until a thread is free
 
-        struct sockaddr_in client_addr;         // client address
-        socklen_t addrlen = sizeof(client_addr);
+            struct sockaddr_in client_addr;         // client address
+            socklen_t addrlen = sizeof(client_addr);
 
-        conn_sockfd = accept(sockfd, (struct sockaddr*) &client_addr, &addrlen);
-        if (conn_sockfd < 0) {
-            perror_die("accept()");
-        }
-
-        // conversion: network to presentation
-        inet_ntop(AF_INET, &client_addr.sin_addr, ip_client, INET_ADDRSTRLEN);
-
-        printf("%s: \x1b[32mconnection established\x1b[0m  with client @ %s:%d\n",
-                                                        "MAIN", // __func__, 
-                                                        ip_client, 
-                                                        address.port // client_addr.sin_port 
-                                                    );
-
-
-        // looking for free thread
-
-        /* critical section */
-        pthread_mutex_lock(&lock_g);
-
-            for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
-                // thread assignment
-
-                if (busy[thread_index] == 0) {
-                    break;
-                }
+            conn_sockfd = accept(sockfd, (struct sockaddr*) &client_addr, &addrlen);
+            if (conn_sockfd < 0) {
+                perror_die("accept()");
             }
 
-            printf("%s: Thread #%d has been selected.\n",
-                                                "MAIN", // __func__, 
-                                                thread_index);
+            // conversion: network to presentation
+            inet_ntop(AF_INET, &client_addr.sin_addr, ip_client, INET_ADDRSTRLEN);
 
-            fds[thread_index] = conn_sockfd;    // assigning socket file descriptor to the file descriptors array
-            busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till its release
+            printf("%s: \x1b[32mconnection established\x1b[0m  with client @ %s:%d\n",
+                                                            "MAIN", // __func__, 
+                                                            ip_client, 
+                                                            address.port // client_addr.sin_port 
+                                                        );
 
-        /* end critical section */
-        pthread_mutex_unlock(&lock_g);
+
+            // looking for free thread
+
+            /* critical section */
+            pthread_mutex_lock(&lock_g);
+
+                for (thread_index = 0; thread_index < NUM_THREADS; thread_index++){  
+                    // thread assignment
+                    if (busy[thread_index] == 0) {
+                        break;
+                    }
+                }
+                printf("MAIN: Thread #%d has been selected.\n", thread_index);
+
+                fds[thread_index] = conn_sockfd;    // assigning socket file descriptor to the file descriptors array
+                busy[thread_index] = 1;             // notification busy thread, so that it can't be assigned to another, till it's released.
+
+            /* end critical section */
+            pthread_mutex_unlock(&lock_g);
 
         
         xp_sem_post(&evsem[thread_index]);        
 
     }
 
-    // pthread_exit(NULL);
-
-
+    
 
     close(conn_sockfd);
 
@@ -471,33 +469,30 @@ threadHandler(void* indx)
         xp_sem_wait(&evsem[thread_index]);
         
         
-        /* critical section */
-        pthread_mutex_lock(&lock_g);
-            conn_sockfd = fds[thread_index];
-        pthread_mutex_unlock(&lock_g);
-        /* end critical section */
+            /* critical section */
+            pthread_mutex_lock(&lock_g);
+                conn_sockfd = fds[thread_index];
+            pthread_mutex_unlock(&lock_g);
+            /* end critical section */
 
 
-        // keep reading messages from client until "quit" arrives.
-        
-        // serving the request (dispatched)
-        dispatcher(conn_sockfd, thread_index);
-        
-        printf ("Thread #%d closed session, client disconnected.\n", thread_index);
-    
-
-
-    
-        // notifying the main thread that THIS thread is now free and can be assigned to new requests.
-    
-        /* critical section */
-        pthread_mutex_lock(&lock_g);
-            busy[thread_index] = 0;
+            // serving the request (dispatched)
+            dispatcher(conn_sockfd, thread_index);
             
-            printf("MAIN: Thread #%d has been freed.\n", thread_index);
+            // you here when the client has disconnected, assiciated to `thread_index` has left.
+            printf ("Thread #%d closed session, client disconnected.\n", thread_index);
         
-        pthread_mutex_unlock(&lock_g);
-        /* end critical section */
+
+
+        
+            // notifying the main thread that THIS thread is now free and can be assigned to new requests.
+        
+            /* critical section */
+            pthread_mutex_lock(&lock_g);
+                busy[thread_index] = 0;
+                printf("MAIN: Thread #%d has been freed.\n", thread_index);
+            pthread_mutex_unlock(&lock_g);
+            /* end critical section */
     
     
         xp_sem_post(&free_threads);
@@ -812,9 +807,9 @@ dispatcher (int conn_sockfd, int thread_index)
 
                     #endif
                     strcat(view_response, ":\n");
-                    strcat(view_response, "+------+------+------+\n");
-                    strcat(view_response, "| date | room | code |\n");
-                    strcat(view_response, "+------+------+------+\n");
+                    strcat(view_response, "-----+------+-------+\n");
+                    strcat(view_response, "date | room | code  |\n");
+                    strcat(view_response, "-----+------+-------+\n");
                     strcat(view_response, reservation_response);
                     writeSocket(conn_sockfd, view_response);
                 }
@@ -858,8 +853,9 @@ dispatcher (int conn_sockfd, int thread_index)
 
         }
 
-        
-        printServerFSMState(&state, &thread_index);
+        #if DEBUG
+            printServerFSMState(&state, &thread_index);
+        #endif
         
 
         // check whether the only coomand that would the program exit the while loop has arrived.
@@ -891,7 +887,11 @@ commitToDatabase(int thread_index, const char* sql_command)
     
 
     #if VERBOSE_DEBUG
-        printf("Thread #%d: Committing to database:\n   %s\n", thread_index, sql_command);
+        
+        // I dont want to print `CREATE TABLE IF NOT EXISTS Bookings(...` every time the program starts.
+        if (thread_index >= 0){
+            printf("Thread #%d: Committing to database:\n   %s\n", thread_index, sql_command);
+        }
     #endif
 
 
@@ -1020,7 +1020,7 @@ viewCallback (void* NotUsed, int argc, char** argv, char** azColName)
     for (int i = 0; i < argc; i++)
     {
         if (i==0){
-            snprintf(tmp_str, sizeof(tmp_str), "  %s   ", argv[i]);
+            snprintf(tmp_str, sizeof(tmp_str), "%s   ", argv[i]);
         }
         else if (i == 1){
             snprintf(tmp_str, sizeof(tmp_str), "%s     ", argv[i]);   
@@ -1182,26 +1182,19 @@ encryptPassword(int thread_index, char* password)
 
 
 
-    /* generating salt here:
-     * the function makeSalt caused a random seg fault to occur:
-     * when a non-alphabetic character is generated such as '<', 
-     * the function crypt does not know how to handle it and 
-     * random crash occurs.
-     * The way i generate the salt instead is by using generateRandomString function
+    /* generating salt using generateRandomString function
      * which I would have written regardless for generating the random reservation code.
      */
-    
     generateRandomString(salt, 3);  // 3:   2 for salt, 1 for '\0'.
     
+
     #if VERBOSE_DEBUG
         printf("Thread #%d: Salt: %c%c\n", thread_index, salt[0], salt[1]);
     #endif
 
     
-
     // copy encrypted password to res and return it.
     strncpy(res, crypt(password, salt), sizeof(res)); 
-    //             ^--- CRYPT(3)    BSD Library Functions Manual
 
     return res;
 }
@@ -1554,7 +1547,7 @@ releaseReservation(int thread_index, User* user, Booking* booking)
 
     if (query->rv == 0){
         
-        if ( *((int*) query->query_result) == 0){  //1 if in database, 0 otherwise.
+        if ( *((int*) query->query_result) == 0){  // 1 if in database, 0 otherwise.
             
             free(query);
             return -1;
@@ -1584,7 +1577,6 @@ releaseReservation(int thread_index, User* user, Booking* booking)
     }
     else {
         printf("%s\n", "Error querying the database!");
-
         free(query);
         return -1;
     }

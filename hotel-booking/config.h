@@ -44,7 +44,7 @@
     #endif
 #endif
 
-#define HELP_MESSAGE_TYPE_1     1       // 1 for type 1, 2 for type 2
+#define HELP_MESSAGE_TYPE_1     0       // 1 for type 1, 0 for type 2
 #define SORT_VIEW_BY_DATE       1       // sort view response by date rather than by order of reservation
 
 

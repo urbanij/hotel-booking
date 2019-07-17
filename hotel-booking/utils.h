@@ -420,8 +420,10 @@ setupClient(Address* address)
         perror_die("socket()");
         exit(0);
     }
-    else
-        printf(ANSI_COLOR_GREEN "[+] Socket successfully created.\n" ANSI_COLOR_RESET);
+    #if DEBUG
+        else
+            printf(ANSI_COLOR_GREEN "[+] Socket successfully created.\n" ANSI_COLOR_RESET);
+    #endif
 
     // clean memory space of server_addr
     #if 0
@@ -441,8 +443,10 @@ setupClient(Address* address)
     if (ret != 0) {
         perror_die("connect()");
     }
-    else
-        printf(ANSI_COLOR_GREEN "[+] Connected to the server..\n" ANSI_COLOR_RESET);
+    #if DEBUG
+        else
+            printf(ANSI_COLOR_GREEN "[+] Connected to the server.\n" ANSI_COLOR_RESET);
+    #endif
 
 
     return sockfd;
