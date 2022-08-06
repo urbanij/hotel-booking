@@ -1,12 +1,16 @@
 # macOS garbage
 .DS_Store
 
+.vscode
+
 # binaries
 client_*
 client
 server_*
 server
 *.out
+
+build
 
 # gdb
 .gdb_history
@@ -32,3 +36,5 @@ aux
 NOTES
 TODO
 scp.sh
+fsm_design
+docs/demo.png

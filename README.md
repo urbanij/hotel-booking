@@ -39,7 +39,9 @@ brew cask install db-browser-for-sqlite     # optional
 #### compilation:
 ```sh
 git clone https://github.com/urbanij/hotel-booking.git
-cd hotel-booking/hotel-booking
+cd hotel-booking/
+mkdir build && cd build
+cmake ..
 make
 ```
 #### running:

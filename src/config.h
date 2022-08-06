@@ -92,6 +92,7 @@
 #define ANSI_COLOR_MAGENTA      "\x1b[35m"
 #define ANSI_COLOR_BMAGENTA     "\x1b[95m"
 #define ANSI_COLOR_CYAN         "\x1b[36m"
+#define ANSI_COLOR_GREY         "\x1b[90m"
 #define ANSI_COLOR_RESET        "\x1b[0m"
 #define ANSI_BOLD               "\033[1m"
 
