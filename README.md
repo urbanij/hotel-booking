@@ -1,5 +1,4 @@
-### 2019 Final Project
-Concurrent & Distributed Programming class
+#### Hotel booking – final project Concurrent & Distributed Programming class
 
 Project specifications (ita):<br>
 [http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf](http://vecchio.iet.unipi.it/se/files/2019/05/Progetto-2018_2019-Sistemi-di-Elaborazione.pdf)
@@ -36,22 +35,31 @@ brew install sqlite3                        # optional
 brew cask install db-browser-for-sqlite     # optional
 ```
 
-#### compilation:
 ```sh
 git clone https://github.com/urbanij/hotel-booking.git
 cd hotel-booking/
 mkdir build && cd build
+```
+
+#### compilation using CMake:
+```sh
 cmake ..
 make
 ```
+
+#### alternatively, compilation using SCons:
+```sh
+scons -Y ..
+```
+
 #### running:
 - open a terminal session and run the server: <br>
 ```sh
-./server 127.0.0.1 8888  5
+./bin/server 127.0.0.1 8888  5
 ```
 - open one or more terminal sessions and run the client(s)<br>
 ```sh
-./client 127.0.0.1 8888
+./bin/client 127.0.0.1 8888
 ```
 where:<br>
 `127.0.0.1` is the IP address (in this case _localhost_),<br> 
